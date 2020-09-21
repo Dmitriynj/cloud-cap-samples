@@ -9,7 +9,7 @@ module.exports = async function () {
     return next();
   });
 
-  this.on("READ", "Media", async (req) => {
+  this.on("READ", "Media", async (req, next) => {
     const [ID] = req.params;
     if (ID) {
       const media = await SELECT.from(Media, { ID });

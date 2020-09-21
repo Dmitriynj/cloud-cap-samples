@@ -8,7 +8,7 @@ document
     event.preventDefault();
     const file = document.getElementById("file-input").files[0];
     const data = await createMedia();
-    uploadFile1(file, data.ID);
+    uploadFile(file, data.ID);
   });
 
 // create media record ind db
