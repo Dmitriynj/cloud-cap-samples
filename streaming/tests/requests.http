@@ -1,0 +1,12 @@
+@server = http://localhost:4004
+
+
+### ------------------------------------------------------------------------
+# Add video
+POST {{server}}/streaming/Media
+Content-Type: application/json
+
+{
+    "mediaType": "video/mp4"
+}
+
