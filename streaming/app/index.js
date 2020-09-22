@@ -1,18 +1,17 @@
 const MEDIA_SERVICE = "http://localhost:4004/streaming/Media";
 
-document.onload = () => {};
-
 document
   .getElementById("upload-form")
   .addEventListener("submit", async (event) => {
     event.preventDefault();
     const file = document.getElementById("file-input").files[0];
-    const data = await createMedia();
-    uploadFile(file, data.ID);
+    const { ID } = await createMedia(file.type);
+    await uploadFile(file, ID);
+    window.location.replace(`${MEDIA_SERVICE}(${ID})/media`);
   });
 
 // create media record ind db
-function createMedia() {
+function createMedia(mediaType) {
   return new Promise((res) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", MEDIA_SERVICE, true);
@@ -28,8 +27,7 @@ function createMedia() {
         throw new Error();
       }
     };
-    // xhr.send(JSON.stringify({ mediaType: "video/mp4" }));
-    xhr.send(JSON.stringify({}));
+    xhr.send(JSON.stringify({ mediaType }));
   });
 }
 
@@ -56,12 +54,7 @@ function uploadFile(file, ID) {
       false
     );
     xhr.open("PUT", `${MEDIA_SERVICE}(${ID})/media`);
-    xhr.setRequestHeader("Content-Type", "video/mp4");
-
-    const reader = new FileReader();
-    reader.onload = function (event) {
-      xhr.send(event.target.result);
-    };
-    reader.readAsBinaryString(file);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.send(file);
   });
 }
