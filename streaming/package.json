@@ -15,6 +15,7 @@
     "sqlite3": "^5"
   },
   "scripts": {
+    "start:dev": "cds deploy --to sqlite:streaming.db && cd ../ && cds run streaming",
     "start": "npx cds run"
   },
   "cds": {

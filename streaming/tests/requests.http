@@ -7,6 +7,5 @@ POST {{server}}/streaming/Media
 Content-Type: application/json
 
 {
-    "mediaType": "video/mp4"
+    
 }
-

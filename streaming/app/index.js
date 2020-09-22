@@ -28,7 +28,8 @@ function createMedia() {
         throw new Error();
       }
     };
-    xhr.send(JSON.stringify({ mediaType: "video/mp4" }));
+    // xhr.send(JSON.stringify({ mediaType: "video/mp4" }));
+    xhr.send(JSON.stringify({}));
   });
 }
 
