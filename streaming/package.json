@@ -9,13 +9,14 @@
     "@sap/cds": "^4",
     "express": "^4",
     "multiparty": "^4.2.2",
+    "passport": "^0.4.1",
     "uuid": "^8.3.0"
   },
   "devDependencies": {
     "sqlite3": "^5"
   },
   "scripts": {
-    "start:dev": "cds deploy --to sqlite:streaming.db && cd ../ && cds run streaming",
+    "start:dev": "cds deploy --to sqlite:streaming.db && cd ../ && cds run streaming NODE_ENV=development",
     "start": "npx cds run"
   },
   "cds": {
@@ -24,6 +25,20 @@
         "kind": "sqlite",
         "credentials": {
           "database": "streaming.db"
+        }
+      },
+      "auth": {
+        "passport": {
+          "strategy": "mock",
+          "users": {
+            "some": {
+              "password": "1234",
+              "ID": "some",
+              "roles": [
+                "authenticated-user"
+              ]
+            }
+          }
         }
       }
     }
