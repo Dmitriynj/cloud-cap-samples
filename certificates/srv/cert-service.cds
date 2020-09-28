@@ -10,11 +10,18 @@ service CertificatesService @(requires : ['identified-user']) {
     @readonly
     entity Tags               as projection on my.Tags;
 
-    @readonly // user can read only his orders
+    @readonly
     entity Orders             as projection on my.Orders;
 
     @(restrict : [{
         grant : '*',
         to    : 'authenticated-user'
     }, ]) action orderCertificate(certificate_ID : my.Certificates.ID, amount : Integer);
+
+
+    @(restrict : [{
+        grant : '*',
+        to    : 'authenticated-user'
+    }, ])
+    action cancelOrder(ID : my.Orders.ID);
 }

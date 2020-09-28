@@ -14,6 +14,4 @@ service ManageCertificates @(requires : [
         grant : ['*'],
         where : '$user.level > 1'
     }])                 as projection on my.CertificatesToTags;
-
-    function getCertificateProfit(certificate_ID : my.Certificates.ID) returns Integer;
 }

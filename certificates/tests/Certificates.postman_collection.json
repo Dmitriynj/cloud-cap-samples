@@ -416,7 +416,7 @@
 							}
 						],
 						"url": {
-							"raw": "http://localhost:4004/certificates/Orders?$apply=groupby((ID),aggregate(ID with countdistinct as total))",
+							"raw": "http://localhost:4004/certificates/Orders",
 							"protocol": "http",
 							"host": [
 								"localhost"
@@ -425,12 +425,6 @@
 							"path": [
 								"certificates",
 								"Orders"
-							],
-							"query": [
-								{
-									"key": "$apply",
-									"value": "groupby((ID),aggregate(ID with countdistinct as total))"
-								}
 							]
 						}
 					},
@@ -508,6 +502,49 @@
 							"path": [
 								"certificates",
 								"Tags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Basic dXNlcjA6",
+								"description": "user0",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Basic dXNlcjE6",
+								"description": "user1",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"ID\": \"1a3194f6-e7b1-4b07-8e22-d58449ef4971\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:4004/certificates/cancelOrder",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"certificates",
+								"cancelOrder"
 							]
 						}
 					},
