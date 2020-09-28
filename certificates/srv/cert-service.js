@@ -5,7 +5,14 @@ module.exports = async function () {
   const { Orders, Certificates } = db.entities; // get reflected definitions
 
   this.before("*", (req) => {
-    console.log("[USER]:", req.user.id, " [LEVEL]: ", req.user.attr.level);
+    console.log(
+      "[USER]:",
+      req.user.id,
+      " [LEVEL]: ",
+      req.user.attr.level,
+      "[ROLE]",
+      req.user.is("user") ? "user" : "other"
+    );
   });
 
   // user can read only his orders

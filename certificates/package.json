@@ -23,6 +23,10 @@
           "database": "certificates.db"
         }
       },
+      "test-orders": {
+        "kind": "odata",
+        "model": "test/models/orders.cds"
+      },
       "auth": {
         "strategy": "mock",
         "users": {
