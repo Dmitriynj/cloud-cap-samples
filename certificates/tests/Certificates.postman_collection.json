@@ -1,0 +1,521 @@
+{
+	"info": {
+		"_postman_id": "2929e619-a0db-4076-8165-9a9807100480",
+		"name": "Certificates",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Admin/Content-creator",
+			"item": [
+				{
+					"name": "Create Certificate",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{user0auth}}",
+								"description": "user0 should not have access",
+								"type": "text",
+								"equals": true,
+								"disabled": true
+							},
+							{
+								"key": "Authorization",
+								"value": "{{admin2auth}}",
+								"description": "admin2 should have acccess",
+								"type": "text",
+								"equals": true,
+								"disabled": true
+							},
+							{
+								"key": "Authorization",
+								"value": "{{content-creator1auth}}",
+								"description": "content-creator1 should have access",
+								"type": "text"
+							},
+							{
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							},
+							{
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"instock\": 10,\r\n    \"title\": \"Some certificate1\",\r\n    \"price\": 4\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:4004/manage-certificates/Certificates",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"manage-certificates",
+								"Certificates"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Tag",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "content-creator1 should have access",
+								"key": "Authorization",
+								"type": "text",
+								"value": "Basic Y29udGVudC1jcmVhdG9yMTo="
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"title\": \"Education\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:4004/manage-certificates/Tags",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"manage-certificates",
+								"Tags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create CreatificateToTag",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Basic Y29udGVudC1jcmVhdG9yMTo=",
+								"description": "content-creator1 should not have access, only admin",
+								"type": "text",
+								"disabled": true
+							},
+							{
+								"key": "Authorization",
+								"value": "Basic YWRtaW4yOg==",
+								"description": "admin2 (level 2) should have access, only ",
+								"type": "text",
+								"disabled": true
+							},
+							{
+								"key": "Authorization",
+								"value": "Basic YWRtaW41Og==",
+								"description": "admin5 (level 5) should have access",
+								"type": "text"
+							},
+							{
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"tag\": {\r\n        \"ID\": \"87315257-3c34-45eb-a947-f7e8d4ca28d7\"\r\n    },\r\n    \"certificate\": {\r\n    \"ID\": \"a95c0286-a9cd-4a80-add7-eaaa20e79f2f\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:4004/manage-certificates/CertificatesToTags",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"manage-certificates",
+								"CertificatesToTags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Tags",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Basic Y29udGVudC1jcmVhdG9yMTo=",
+								"description": "content-creator1 should have access",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:4004/manage-certificates/Tags",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"manage-certificates",
+								"Tags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Certificates By Tag",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "admin2 should have access",
+								"key": "Authorization",
+								"type": "text",
+								"value": "Basic YWRtaW4yOg=="
+							}
+						],
+						"url": {
+							"raw": "http://localhost:4004/manage-certificates/CertificatesToTags?$filter=tag_ID eq 87315257-3c34-45eb-a947-f7e8d4ca28d7&$expand=certificate",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"manage-certificates",
+								"CertificatesToTags"
+							],
+							"query": [
+								{
+									"key": "$filter",
+									"value": "tag_ID eq 87315257-3c34-45eb-a947-f7e8d4ca28d7"
+								},
+								{
+									"key": "$expand",
+									"value": "certificate"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Order",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Basic YWRtaW4yOg==",
+								"description": "admin2",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:4004/manage-certificates/Orders",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"manage-certificates",
+								"Orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All CertificatesToTags",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Basic YWRtaW41Og==",
+								"description": "admin5",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:4004/manage-certificates/CertificatesToTags",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"manage-certificates",
+								"CertificatesToTags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Certificate Profit",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"certificate_ID\": \"85fd2b03-43e3-4d96-ac05-c93ce8db6355\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:4004/manage-certificates/getCertificateProfit",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"manage-certificates",
+								"getCertificateProfit"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "Get All Certificates By Tag",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Basic dXNlcjE6",
+								"description": "user1 should have access",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:4004/certificates/CertificatesToTags?$expand=tags($filter=tag_ID eq bb3b12a5-8e13-40bb-b88e-f7c5cefdc16a)",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"certificates",
+								"CertificatesToTags"
+							],
+							"query": [
+								{
+									"key": "$expand",
+									"value": "tags($filter=tag_ID eq bb3b12a5-8e13-40bb-b88e-f7c5cefdc16a)"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Order ",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Basic dXNlcjE6",
+								"description": "user1",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Basic dXNlcjA6",
+								"description": "user0",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"certificate_ID\": \"85fd2b03-43e3-4d96-ac05-c93ce8db6355\",\r\n    \"amount\": 1\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:4004/certificates/orderCertificate",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"certificates",
+								"orderCertificate"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Orders (restriction: owned only)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Basic dXNlcjE6",
+								"description": "user1",
+								"type": "text",
+								"disabled": true
+							},
+							{
+								"key": "Authorization",
+								"value": "Basic dXNlcjA6",
+								"description": "user0",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:4004/certificates/Orders?$apply=groupby((ID),aggregate(ID with countdistinct as total))",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"certificates",
+								"Orders"
+							],
+							"query": [
+								{
+									"key": "$apply",
+									"value": "groupby((ID),aggregate(ID with countdistinct as total))"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Certificates",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Basic dXNlcjE6",
+								"description": "user1",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:4004/certificates/Certificates?$expand=tags($expand=tag),orders",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"certificates",
+								"Certificates"
+							],
+							"query": [
+								{
+									"key": "$expand",
+									"value": "tags($expand=tag),orders"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Tags",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Basic dXNlcjE6",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Basic YWRtaW4yOg==",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"url": {
+							"raw": "http://localhost:4004/certificates/Tags",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "4004",
+							"path": [
+								"certificates",
+								"Tags"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		}
+	],
+	"protocolProfileBehavior": {}
+}
