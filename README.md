@@ -3,6 +3,7 @@
 Find here a collection of samples for the [SAP Cloud Application Programming Model](https://cap.cloud.sap) organized in a simplistic [monorepo setup](samples.md#all-in-one-monorepo). &rarr; See [**Overview** of contained samples](samples.md)
 
 ![](https://github.com/SAP-samples/cloud-cap-samples/workflows/CI/badge.svg)
+[![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/cloud-cap-samples)](https://api.reuse.software/info/github.com/SAP-samples/cloud-cap-samples)
 
 ### Preliminaries
 
@@ -47,6 +48,22 @@ npx jest
 > While mocha is a bit smaller and faster, jest runs tests in parallel and isolation, which allows to run all tests.
 
 
+### Serve `npm` 
+
+We've simple npm registry mock included which allows you to do an `npm install @capire/<package>` anywhere locally. Use it as follows:
+
+1. Start the @capire registry:
+```sh
+npm run registry
+```
+> While running this will have `@capire:registry=http://localhost:4444` set with npmrc. 
+
+2. Install one of the @capire packages wherever you like, e.g.:
+```sh
+npm add @capire/common @capire/bookshop
+```
+
+
 ## Get Support
 
 Check out the documentation at [https://cap.cloud.sap](https://cap.cloud.sap). <br>
@@ -55,4 +72,4 @@ In case you have a question, find a bug, or otherwise need support, please use o
 
 ## License
 
-Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, version 2.0 except as noted otherwise in the [LICENSE](/LICENSE) file.
+Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, version 2.0 except as noted otherwise in the [LICENSE](LICENSES/Apache-2.0.txt) file.

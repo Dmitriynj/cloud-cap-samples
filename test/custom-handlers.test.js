@@ -1,9 +1,5 @@
-const { GET, POST, expect } = require('./cds').test('bookshop').in(__dirname,'..')
-const is_jest = !!global.test
-if (is_jest) { // it's jest
-  global.before = (msg,fn) => global.beforeAll(fn||msg)
-  global.after = (msg,fn) => global.afterAll(fn||msg)
-}
+const { GET, POST, expect } = require('../test') .run ('bookshop')
+const cds = require('@sap/cds/lib'); cds.User = cds.User.Privileged // skip auth
 
 describe('Custom Handlers', () => {
 
