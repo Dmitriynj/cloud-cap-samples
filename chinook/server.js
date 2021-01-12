@@ -1,5 +1,30 @@
 const cds = require("@sap/cds");
 
+const fs = require("fs");
+const peg = require("pegjs");
+
+const compiledPegData = fs.readFileSync("./parser/odata2cqn.pegjs", {
+  encoding: "utf8",
+  flag: "r",
+});
+const parser = peg.generate(compiledPegData);
+
+const $dispatch = cds.Service.prototype.dispatch;
+cds.Service.prototype.dispatch = function (req, ...etc) {
+  if (req.query && req._.req) {
+    const URL_TO_PARSE = decodeURIComponent(req._.req.url.substring(1));
+    console.log("\n URL_TO_PARSE:", URL_TO_PARSE, "\n CQN:", req.query);
+    try {
+      const parsedQuery = parser.parse(URL_TO_PARSE);
+      console.log("\n NEW CQN:", parsedQuery);
+      // req.query.SELECT = parsedQuery.SELECT;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  return $dispatch.call(this, req, ...etc);
+};
+
 const getDurationInMilliseconds = (start) => {
   const NS_PER_SEC = 1e9; //  convert to nanoseconds
   const NS_TO_MS = 1e6; // convert to milliseconds
