@@ -24,7 +24,8 @@
   "scripts": {
     "start": "npx cds run",
     "deploy": "npx cds deploy --to sqlite:mychinook.db",
-    "test": "npx mocha ../test/chinook.test.js --verbose --timeout 10000"
+    "test": "npx mocha ../test/chinook.test.js --verbose --timeout 10000",
+    "test-parser": "npx mocha ./parser/odata.parser.test.js --verbose --timeout 10000"
   },
   "cds": {
     "folders": {

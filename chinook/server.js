@@ -1,13 +1,5 @@
 const cds = require("@sap/cds");
-
-const fs = require("fs");
-const peg = require("pegjs");
-
-const compiledPegData = fs.readFileSync("./parser/odata2cqn.pegjs", {
-  encoding: "utf8",
-  flag: "r",
-});
-const parser = peg.generate(compiledPegData);
+const { parser } = require("./parser/parser");
 
 const $dispatch = cds.Service.prototype.dispatch;
 cds.Service.prototype.dispatch = function (req, ...etc) {
@@ -17,6 +9,9 @@ cds.Service.prototype.dispatch = function (req, ...etc) {
     try {
       const parsedQuery = parser.parse(URL_TO_PARSE);
       console.log("\n NEW CQN:", parsedQuery);
+
+      // only for experimental
+      // comment next line when running odata.parser.test
       // req.query.SELECT = parsedQuery.SELECT;
     } catch (e) {
       console.error(e);

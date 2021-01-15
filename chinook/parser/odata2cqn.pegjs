@@ -23,7 +23,7 @@
     const end = ()=> columns = stack.pop()
     const comparisonOperators = {
     	eq: '=',
-    	ne: '<>',
+    	ne: '!=',
     	lt: '<',
     	gt: '>',
     	le: '<=',
@@ -202,7 +202,13 @@ closeGroup
 // ----------
     
 compareExpr
-	= expr:$(fieldRef _ equalOperator _ ((quotationMark parsedStr quotationMark) / parsedInt)) 
+	= expr:$(
+    	fieldRef _ 
+        (
+        	(equalOperator _ ((quotationMark parsedStr quotationMark) / parsedNumber)) / 
+        	(comparisonOperator _ parsedNumber)     	
+      	)
+      )  
 
 fieldRef = f:field 
 	{ filterExpr.appendWhereClause([f]); }
@@ -213,7 +219,7 @@ equalOperator
 	= equalOperator:("eq" / "ne") 
     { filterExpr.appendWhereClause([comparisonOperators[equalOperator]]); } 
 comparisonOperator 
-	= comparisonOperator:("eq" / "ne" / "lt" / "gt" / "le" / "ge") 
+	= comparisonOperator:("lt" / "gt" / "le" / "ge") 
     { filterExpr.appendWhereClause([comparisonOperators[comparisonOperator]]); }
 stringLiteral "string literal" 
 	= stringLiteral:$([.,:; a-zA-Z0-9/]+) 
@@ -221,11 +227,11 @@ stringLiteral "string literal"
 parsedStr 
 	= val:stringLiteral 
     { filterExpr.appendWhereClause([val]); }
-intNumber "number" 
-	= intNumber:$([0-9]+) 
-    { return { val: parseInt(intNumber) }; }
-parsedInt
-	= val:intNumber 
+number "number" 
+	= number:$([0-9]+ (('.') [0-9]+)?) 
+    { return { val: Number(number) }; }
+parsedNumber
+	= val:number 
     { filterExpr.appendWhereClause([val]); }
 
     
@@ -256,14 +262,14 @@ startswithStrArg = val:stringLiteral
 // ---------- "length" ----------
 //
 lengthExpr 
-	= $('(' lengthExprField ')'  _ comparisonOperator _ parsedInt)    
+	= $('(' lengthExprField ')'  _ (comparisonOperator / equalOperator) _ parsedNumber)    
 lengthExprField = val:field
 	{ filterExpr.appendFuncArgs('length', val); }
 //    
 // ---------- "indexof" ----------
 //
 indexofExpr 
-	= $('(' indexofExprField ',' quotationMark indexofStrArg quotationMark ')'  _ comparisonOperator _ parsedInt)   
+	= $('(' indexofExprField ',' quotationMark indexofStrArg quotationMark ')'  _ (comparisonOperator / equalOperator) _ parsedNumber)   
 indexofExprField = val:field
 	{ filterExpr.appendFuncArgs('locate', val); }
 indexofStrArg = val:stringLiteral
@@ -275,8 +281,8 @@ substringExpr
 	= $('(' substringExprField ',' substringIntArg ')' compareWithString)   
 substringExprField = val:field
 	{ filterExpr.appendFuncArgs('substring', val); }
-substringIntArg = val:intNumber
-	{ filterExpr.updateLastFuncArgs(val); }
+substringIntArg = val:number
+	{ filterExpr.updateLastFuncArgs(++val); }
 //
 // ---------- "tolower" ----------
 //
