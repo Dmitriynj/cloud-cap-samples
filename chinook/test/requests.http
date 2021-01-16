@@ -90,7 +90,7 @@ GET {{browse-tracks-service}}/Tracks?$count=true
 
 ### ------------------------------------------------------------------------
 # Get Trakcs
-GET {{browse-tracks-service}}/Tracks?$select=ID,name,composer,unitPrice&$filter=substring(name,'e') eq 1&$count=true
+GET {{browse-tracks-service}}/Tracks?$select=ID,name,composer,unitPrice&$filter=contains('name','sun')&$count=true
 
 ### ------------------------------------------------------------------------
 # Get Albums by artist ID axpanding tracks and artist

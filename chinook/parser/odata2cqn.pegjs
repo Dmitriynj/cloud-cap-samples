@@ -1,4 +1,7 @@
 /**
+ * Odata Spec http://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/abnf/odata-abnf-construction-rules.txt
+ * Future test cases http://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/abnf/odata-abnf-testcases.xml
+ *
  * Examples: 
  * Books
  * Books/201
@@ -153,6 +156,8 @@ QueryOptions = (
 
 FilterExprSequence = (Expr (_ logicalOperator _ Expr)*)
 
+FilterCompletion = (_ logicalOperator _ Expr)*
+
 Expr = (
 		(notOperator _)? 
         (
@@ -205,7 +210,7 @@ compareExpr
 	= expr:$(
     	fieldRef _ 
         (
-        	(equalOperator _ ((quotationMark parsedStr quotationMark) / parsedNumber)) / 
+        	(equalOperator _ ((string) / parsedNumber)) / 
         	(comparisonOperator _ parsedNumber)     	
       	)
       )  
@@ -221,6 +226,23 @@ equalOperator
 comparisonOperator 
 	= comparisonOperator:("lt" / "gt" / "le" / "ge") 
     { filterExpr.appendWhereClause([comparisonOperators[comparisonOperator]]); }
+
+character = [.,:; a-zA-Z0-9/]
+
+//strLiteral = 
+
+//literalExpr 
+	//= val:$(quotationMark (quotationMark* literalPart quotationMark)*) 
+  //  = val:$(quotationMark (quotationMark* literalPart)*  )
+    //{ console.log('val', val) }
+
+literalPart 
+	= val:$([.,:; a-zA-Z0-9/]+) 
+
+//endStringLiteral
+//	= val:$(.* "' ") 
+//    {console.log('val', val, location())}
+
 stringLiteral "string literal" 
 	= stringLiteral:$([.,:; a-zA-Z0-9/]+) 
     { return { val: stringLiteral }; }
@@ -376,6 +398,15 @@ orderby = o:$[^,?&()]+
 compareWithString =  _ equalOperator _ quotationMark parsedStr quotationMark
 
 quotationMark "quotation mark" = "'"
+
+otherDelims   = "!" / "(" / ")" / "*" / "+" / "," / ";"
+unreserved = [A-Za-z ] / [0-9] / "-" / "." / "_" / "~"
+pcharNoSQUOTE = unreserved / otherDelims / "$" / "&" / "=" / ":" / "@"
+SQUOTE = "'"
+string 
+	= val: $(SQUOTE ( SQUOTEInString / pcharNoSQUOTE )* SQUOTE)
+    { console.log('val', val) }
+SQUOTEInString = SQUOTE SQUOTE // two consecutive single quotes represent one within a string literal
 
 //-- Whitespaces
 _ "one or more whitespaces" = $[ \t\n]+ 
