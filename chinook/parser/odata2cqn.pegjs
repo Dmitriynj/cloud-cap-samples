@@ -24,7 +24,7 @@
         columns = col.expand = []
    	}
     const end = ()=> columns = stack.pop()
-    const comparisonOperators = {
+    const compOperators = {
     	eq: '=',
     	ne: '!=',
     	lt: '<',
@@ -202,59 +202,53 @@ closeGroup
     	console.log('closing group');
         filterExpr.appendWhereClause([')']);
     }
+    
+    
 
 // ---------- Single $filter expression ----------
-// ----------
-    
+// ---------- 
 compareExpr
 	= expr:$(
     	fieldRef _ 
         (
-        	(equalOperator _ ((string) / parsedNumber)) / 
-        	(comparisonOperator _ parsedNumber)     	
+        	(eqOperator _ ((SQUOTE parsedStr SQUOTE) / parsedNumber)) / 
+        	(compOperator _ parsedNumber)     	
       	)
       )  
-
 fieldRef = f:field 
 	{ filterExpr.appendWhereClause([f]); }
 field "field name" 
 	= field:$([a-zA-Z] [_a-zA-Z0-9]*) 
     { return { ref: [field] }; }
-equalOperator 
-	= equalOperator:("eq" / "ne") 
-    { filterExpr.appendWhereClause([comparisonOperators[equalOperator]]); } 
-comparisonOperator 
-	= comparisonOperator:("lt" / "gt" / "le" / "ge") 
-    { filterExpr.appendWhereClause([comparisonOperators[comparisonOperator]]); }
-
-character = [.,:; a-zA-Z0-9/]
-
-//strLiteral = 
-
-//literalExpr 
-	//= val:$(quotationMark (quotationMark* literalPart quotationMark)*) 
-  //  = val:$(quotationMark (quotationMark* literalPart)*  )
-    //{ console.log('val', val) }
-
-literalPart 
-	= val:$([.,:; a-zA-Z0-9/]+) 
-
-//endStringLiteral
-//	= val:$(.* "' ") 
-//    {console.log('val', val, location())}
-
-stringLiteral "string literal" 
-	= stringLiteral:$([.,:; a-zA-Z0-9/]+) 
-    { return { val: stringLiteral }; }
+eqOperator 
+	= eqOperator:("eq" / "ne") 
+    { filterExpr.appendWhereClause([compOperators[eqOperator]]); } 
+compOperator 
+	= compOperator:("lt" / "gt" / "le" / "ge") 
+    { filterExpr.appendWhereClause([compOperators[compOperator]]); }	
 parsedStr 
-	= val:stringLiteral 
+	= val:strEntireVal 
     { filterExpr.appendWhereClause([val]); }
 number "number" 
 	= number:$([0-9]+ (('.') [0-9]+)?) 
-    { return { val: Number(number) }; }
+    { console.log(number,Number(number)); return { val: Number(number) }; }
 parsedNumber
 	= val:number 
     { filterExpr.appendWhereClause([val]); }
+    
+    
+// ---------- URI syntax [RFC3986] ----------
+// ----------
+otherDelims   = "!" / "(" / ")" / "*" / "+" / "," / ";"
+unreserved = [A-Za-z] / [0-9] / " " / "-" / "." / "_" / "~"
+pcharNoSQUOTE = unreserved / otherDelims / "$" / "&" / "=" / ":" / "@"
+SQUOTE "quotation mark" = "'"
+strEntireVal = val:$(( SQUOTEInString / pcharNoSQUOTE )*)
+	{ return { val }; }
+string "string literal"
+	= val: $(SQUOTE strEntireVal SQUOTE)
+    { console.log('val', val) }
+SQUOTEInString = SQUOTE SQUOTE // two consecutive single quotes represent one within a string literal
 
     
 // ---------- String functions ----------
@@ -263,77 +257,77 @@ parsedNumber
 // ---------- "contains" ----------
 //
 containsFunc 
-	= $('(' fieldRef ',' quotationMark containsStrArg quotationMark ')')
-containsStrArg = val:stringLiteral
+	= $('(' fieldRef ',' SQUOTE containsStrArg SQUOTE ')')
+containsStrArg = val:strEntireVal
 	{ filterExpr.appendLikeFunc('contains', val); }
 //
 // ---------- "endswith" ----------
 //
 endswithFunc 
-	= $('(' fieldRef ',' quotationMark endswithStrArg quotationMark ')')
-endswithStrArg = val:stringLiteral
+	= $('(' fieldRef ',' SQUOTE endswithStrArg SQUOTE ')')
+endswithStrArg = val:strEntireVal
 	{ filterExpr.appendLikeFunc('endswith', val); }
 //   
 // ---------- "startswith" ----------
 //
 startswithFunc 
-	= $('(' fieldRef ',' quotationMark startswithStrArg quotationMark ')')
-startswithStrArg = val:stringLiteral
+	= $('(' fieldRef ',' SQUOTE startswithStrArg SQUOTE ')')
+startswithStrArg = val:strEntireVal
 	{ filterExpr.appendLikeFunc('startswith', val); }
 //  
 // ---------- "length" ----------
 //
 lengthExpr 
-	= $('(' lengthExprField ')'  _ (comparisonOperator / equalOperator) _ parsedNumber)    
+	= $('(' lengthExprField ')'  _ (compOperator / eqOperator) _ parsedNumber)    
 lengthExprField = val:field
 	{ filterExpr.appendFuncArgs('length', val); }
 //    
 // ---------- "indexof" ----------
 //
 indexofExpr 
-	= $('(' indexofExprField ',' quotationMark indexofStrArg quotationMark ')'  _ (comparisonOperator / equalOperator) _ parsedNumber)   
+	= $('(' indexofExprField ',' SQUOTE indexofStrArg SQUOTE ')'  _ (compOperator / eqOperator) _ parsedNumber)   
 indexofExprField = val:field
 	{ filterExpr.appendFuncArgs('locate', val); }
-indexofStrArg = val:stringLiteral
+indexofStrArg = val:strEntireVal
 	{ filterExpr.updateLastFuncArgs(val); }
 //    
 // ---------- "substring" ----------
 //
 substringExpr 
-	= $('(' substringExprField ',' substringIntArg ')' compareWithString)   
+	= $('(' substringExprField ',' substringIntArg ')' _ eqOperator _ SQUOTE parsedStr SQUOTE)   
 substringExprField = val:field
 	{ filterExpr.appendFuncArgs('substring', val); }
-substringIntArg = val:number
-	{ filterExpr.updateLastFuncArgs(++val); }
+substringIntArg = numVal:number
+	{ let { val } = numVal; filterExpr.updateLastFuncArgs(++val); }
 //
 // ---------- "tolower" ----------
 //
 tolowerExpr 
-	= $('(' tolowerExprField ')' compareWithString)    
+	= $('(' tolowerExprField ')' _ eqOperator _ SQUOTE parsedStr SQUOTE)    
 tolowerExprField = val:field
 	{ filterExpr.appendFuncArgs('lower', val); }
 //
 // ---------- "toupper" ----------
 //
 toupperExpr 
-	= $('(' toupperExprField ')' compareWithString)
+	= $('(' toupperExprField ')' _ eqOperator _ SQUOTE parsedStr SQUOTE)
 toupperExprField = val:field
 	{ filterExpr.appendFuncArgs('upper', val); }
 //   
 // ---------- "trim" ----------
 //
 trimExpr 
-	= $('(' trimExprField ')' compareWithString)
+	= $('(' trimExprField ')' _ eqOperator _ SQUOTE parsedStr SQUOTE)
 trimExprField = val:field
 	{ filterExpr.appendFuncArgs('trim', val); }
 
 //   
 // ---------- "concat" ----------
 //
-concatExpr = concatExprPiece compareWithString
+concatExpr = concatExprPiece _ eqOperator _ SQUOTE parsedStr SQUOTE
 
 concatExprPiece 
-	= $(concatName '(' (concatExprPiece / concatExprFieldOne) ',' quotationMark concatExprStr quotationMark ')')
+	= $(concatName '(' (concatExprPiece / concatExprFieldOne) ',' SQUOTE concatExprStr SQUOTE ')')
 	{ filterExpr.decrementConcutLevel(); }
 concatName = "concat" 
 	{ filterExpr.incrementConcutLevel(); }
@@ -342,7 +336,7 @@ concatExprFieldOne = val:field
     	console.log('concat field:', val); 
         filterExpr.createConcutArgsStructure(val);
     }
-concatExprStr = val:stringLiteral
+concatExprStr = val:strEntireVal
 	{ 
     	console.log('concat str:', val);
     }
@@ -394,19 +388,6 @@ orderby = o:$[^,?&()]+
             ]
         }
     }
-
-compareWithString =  _ equalOperator _ quotationMark parsedStr quotationMark
-
-quotationMark "quotation mark" = "'"
-
-otherDelims   = "!" / "(" / ")" / "*" / "+" / "," / ";"
-unreserved = [A-Za-z ] / [0-9] / "-" / "." / "_" / "~"
-pcharNoSQUOTE = unreserved / otherDelims / "$" / "&" / "=" / ":" / "@"
-SQUOTE = "'"
-string 
-	= val: $(SQUOTE ( SQUOTEInString / pcharNoSQUOTE )* SQUOTE)
-    { console.log('val', val) }
-SQUOTEInString = SQUOTE SQUOTE // two consecutive single quotes represent one within a string literal
 
 //-- Whitespaces
 _ "one or more whitespaces" = $[ \t\n]+ 
