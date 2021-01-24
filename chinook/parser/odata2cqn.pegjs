@@ -99,6 +99,9 @@ Expr = (
         toupperExpr /
         trimExpr /
         concatExpr /
+		dayExpr /
+		hourExpr /
+		minuteExpr /
         compareStrExpr /
 		compareNumExpr
     )
@@ -160,9 +163,7 @@ numCompOperator
 	{ return compOperators[operatorVal]; }	
 strEntry = val:$( ( SQUOTEInString / pcharNoSQUOTE )* )
 	{ return { val }; }
-number "number" 
-	= number:$([0-9]+ (('.') [0-9]+)?) 
-    { return { val: Number(number) }; }
+
 
 
     
@@ -177,18 +178,13 @@ strFuncCall = strFuncObj:(
 				concatFunc
 			  )
 			  { 
-				console.log('strFuncObj',strFuncObj); 
 			  	return strFuncObj;
 			  }
-
-strLiteral = SQUOTE strArgVal:strEntry SQUOTE
-	{ return strArgVal; }
 	
 fieldArg = fieldRef:( strLiteral / field )
 		   { return fieldRef }
 
-
-
+// ---------- String functions ----------
 //
 // ---------- "contains" ----------
 //
@@ -196,7 +192,7 @@ containsFunc
 	= "contains" 
 	  OPEN
 	  	fieldRef:( strFuncCall / fieldArg ) COMMA 
-		SQUOTE containsStrArg:strEntry SQUOTE 
+		containsStrArg:( strFuncCall / strLiteral )
 	  CLOSE 
 	{  
     	filterExpr.appendWhereClause([
@@ -217,7 +213,7 @@ endswithFunc
 	= "endswith" 
 	  OPEN 
 	  	fieldRef:( strFuncCall / fieldArg ) COMMA 
-	  	SQUOTE endswithStrArg:strEntry SQUOTE
+	  	endswithStrArg:( strFuncCall / strLiteral )
 	  CLOSE
 	{ 
 		filterExpr.appendWhereClause([    
@@ -238,7 +234,7 @@ startswithFunc
 	= "startswith" 
 	  OPEN 
 	  	fieldRef:( strFuncCall / fieldArg ) COMMA
-		SQUOTE startswithStrArg:strEntry SQUOTE
+		startswithStrArg:( strFuncCall / strLiteral )
 	  CLOSE 
 	{ 
 		filterExpr.appendWhereClause([    
@@ -279,7 +275,7 @@ indexofExpr
 	= "indexof"
 	  OPEN
 	  	fieldRef:( strFuncCall / fieldArg ) COMMA
-		SQUOTE strArgVal:strEntry SQUOTE
+		strArgVal:( strFuncCall / strLiteral )
 	  CLOSE 
 	  SP operatorVal:(numCompOperator / eqOperator) SP 
 	  numVal:number  
@@ -313,7 +309,7 @@ substringFunc
 substringExpr
 	= substrObj:strFuncCall
 	  SP operatorVal:eqOperator SP 
-	  SQUOTE strArgVal:strEntry SQUOTE
+	  strArgVal:( strFuncCall / strLiteral )
 	  {
 		filterExpr.appendWhereClause([
 			substrObj,
@@ -338,7 +334,7 @@ tolowerFunc
 tolowerExpr 
 	= tolowerObj:strFuncCall
 	  SP operatorVal:eqOperator SP 
-	  SQUOTE strArgVal:strEntry SQUOTE 
+	  strArgVal:( strFuncCall / strLiteral )  
 	  {
 		filterExpr.appendWhereClause([
 			tolowerObj,
@@ -363,7 +359,7 @@ toupperFunc
 toupperExpr 
 	= toupperObj:strFuncCall
 	  SP operatorVal:eqOperator SP 
-	  SQUOTE strArgVal:strEntry SQUOTE
+	  strArgVal:( strFuncCall / strLiteral ) 
 	  {
 		filterExpr.appendWhereClause([
 			toupperObj,
@@ -388,7 +384,7 @@ trimFunc
 trimExpr
 	= trimObj:strFuncCall
 	  SP operatorVal:eqOperator SP 
-	  SQUOTE strArgVal:strEntry SQUOTE
+	  strArgVal:( strFuncCall / fieldArg )
 	  {
 		filterExpr.appendWhereClause([
 			trimObj,
@@ -404,7 +400,7 @@ concatFunc
 	= "concat"
 	  OPEN	
 	  	fieldRef:( strFuncCall / fieldArg ) COMMA
-		SQUOTE strArgVal:strEntry SQUOTE
+		strArgVal:( strFuncCall / fieldArg )
 	  CLOSE
 	  {
 		return {
@@ -415,14 +411,105 @@ concatFunc
 concatExpr
 	= concatObj:strFuncCall
 	  SP operatorVal:eqOperator SP 
-	  SQUOTE strArgVal:strEntry SQUOTE
+	  strArgVal:( strFuncCall / fieldArg )
 	  {
 		filterExpr.appendWhereClause([
 			concatObj,
 			operatorVal,
 			strArgVal,
 		]);
-	  }	  
+	  }	 
+
+// Date functions
+// 
+// ---------- "date" ----------
+//
+// date is not suppported yet in CAP
+// dateFunc 
+// 	= "date"
+// 	  OPEN
+// 		dateVal:dateValue
+// 	  CLOSE
+// 	  {  }
+//
+// ---------- "day" ----------
+//
+dayFunc 
+	= "day"
+	  OPEN
+ 		fieldRef:(dateTimeOffsetValue / dateValue / field)
+ 	  CLOSE
+	  {
+		return {
+      		func: 'dayofmonth',
+      		args: [ fieldRef ]    
+		}
+	  }
+dayExpr 
+	= dayObj:dayFunc
+	  SP operatorVal:( numCompOperator / eqOperator ) SP 
+	  numArgVal:number
+	  {
+		filterExpr.appendWhereClause([
+			dayObj,
+			operatorVal,
+			numArgVal,
+		]);
+	  }
+//
+// ---------- "day" ----------
+//	   
+hourFunc 
+	= "hour"
+	  OPEN
+ 		fieldRef:(dateTimeOffsetValue / timeOfDayValue / field)
+ 	  CLOSE
+	  {
+		return {
+      		func: 'hour',
+      		args: [ fieldRef ]    
+		}
+	  }
+hourExpr 
+	= hourObj:hourFunc
+	  SP operatorVal:( numCompOperator / eqOperator ) SP 
+	  numArgVal:number
+	  {
+		filterExpr.appendWhereClause([
+			hourObj,
+			operatorVal,
+			numArgVal,
+		]);
+	  }
+//	
+// ---------- "maxdatetime" "mindatetime" "fractionalseconds" ----------
+// is not supported by CAP
+// 
+//
+// ---------- "minute" ----------
+//
+minuteFunc 
+	= "minute"
+	  OPEN
+ 		fieldRef:(dateTimeOffsetValue / timeOfDayValue / field)
+ 	  CLOSE
+	  {
+		return {
+      		func: 'minute',
+      		args: [ fieldRef ]    
+		}
+	  }
+minuteExpr 
+	= minuteObj:minuteFunc
+	  SP operatorVal:( numCompOperator / eqOperator ) SP 
+	  numArgVal:number
+	  {
+		filterExpr.appendWhereClause([
+			minuteObj,
+			operatorVal,
+			numArgVal,
+		]);
+	  }
 
 
 expand
@@ -468,7 +555,48 @@ orderby = o:$[^,?&()]+
             	{ ref: [out[0]], sort: out[1] }
             ]
         }
-    }
+	}
+
+//
+// Primitive literals	
+//
+
+// date
+dateValue = val:$( year "-" month "-" day )
+	{ return { val } }
+year  = "-"? ( "0" DIGIT DIGIT DIGIT / oneToNine DIGIT DIGIT DIGIT )
+month = "0" oneToNine
+      / "1" ( "0" / "1" / "2" )
+day   = "0" oneToNine
+      / ( "1" / "2" ) DIGIT
+      / "3" ( "0" / "1" )
+oneToNine = "1" / "2" / "3" / "4" / "5" / "6" / "7" / "8" / "9"    
+
+// datetime offset
+dateTimeOffsetValue = val:$( year "-" month "-" day "T" hour ":" minute ( ":" second ( "." fractionalSeconds )? )? ( "Z" / SIGN hour ":" minute ))
+	{ return { val: (new Date(val)).toISOString() } }
+hour   = ( "0" / "1" ) DIGIT
+       / "2" ( "0" / "1" / "2" / "3" ) 
+minute = zeroToFiftyNine
+second = zeroToFiftyNine 
+zeroToFiftyNine = ( "0" / "1" / "2" / "3" / "4" / "5" ) DIGIT
+fractionalSeconds = DIGIT DIGIT? DIGIT? DIGIT?
+					DIGIT? DIGIT? DIGIT? DIGIT?
+                    DIGIT? DIGIT? DIGIT? DIGIT?
+
+// time of day value
+timeOfDayValue = val:$( hour ":" minute ( ":" second ( "." fractionalSeconds )? )? )
+	{ return { val } }
+
+// string
+strLiteral = SQUOTE strArgVal:strEntry SQUOTE
+	{ return strArgVal; }
+
+// number
+number "number" 
+	= number:$([0-9]+ (('.') [0-9]+)?) 
+    { return { val: Number(number) }; }
+
 
 //
 // ---------- URI sintax ----------
