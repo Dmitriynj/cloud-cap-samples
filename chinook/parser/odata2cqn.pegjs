@@ -32,11 +32,14 @@
     	le: '<=',
     	ge: '>=',
     }
+    let funcAppendLink;
+    let funcCallRes = [];
    
      function FilterExpr() {
     	let parsedWhereClause = [];
         let concatLevel = 0; // to nested "concat expressions"
- 
+        let innerFuncAppendLink;
+
         function appendWhereClause(body) {
     		if(!parsedWhereClause) {
         		parsedWhereClause = body;
@@ -123,7 +126,9 @@
             // for "concut" func only
             incrementConcutLevel,
             decrementConcutLevel,
-            createConcutArgsStructure
+            createConcutArgsStructure,
+
+            innerFuncAppendLink
         }
     }	
 }
@@ -154,26 +159,26 @@ QueryOptions = (
 // ---------- Grouped $filter expression ----------
 // ----------
 
-FilterExprSequence = (Expr (_ logicalOperator _ Expr)*)
+FilterExprSequence = (Expr (SP logicalOperator SP Expr)*)
 
-FilterCompletion = (_ logicalOperator _ Expr)*
+FilterCompletion = (SP logicalOperator SP Expr)*
 
 Expr = (
-		(notOperator _)? 
+		(notOperator SP)? 
         (
-        	"contains" containsFunc / 
-        	"endswith" endswithFunc /
-            "startswith" startswithFunc /
+        	containsFunc / 
+        	endswithFunc /
+            startswithFunc /
             GroupedExpr
         )
     ) /
 	(
-    	"length" lengthExpr /
-        "indexof" indexofExpr /
-        "substring" substringExpr /
-        "tolower" tolowerExpr /
-        "toupper" toupperExpr /
-        "trim" trimExpr /
+    	lengthExpr /
+        indexofExpr /
+        substringExpr /
+        tolowerExpr /
+        toupperExpr /
+        trimExpr /
         concatExpr /
         compareExpr
     )
@@ -191,28 +196,27 @@ notOperator
         filterExpr.appendWhereClause([notOperator]);
     }
 startGroup 
-	= '(' 
+	= OPEN
     {
     	console.log('opening group');
         filterExpr.appendWhereClause(['(']);
     }  
 closeGroup
-	= ')' 
+	= CLOSE 
     {
     	console.log('closing group');
         filterExpr.appendWhereClause([')']);
-    }
-    
+    } 
     
 
 // ---------- Single $filter expression ----------
 // ---------- 
 compareExpr
 	= expr:$(
-    	fieldRef _ 
+    	fieldRef SP 
         (
-        	(eqOperator _ ((SQUOTE parsedStr SQUOTE) / parsedNumber)) / 
-        	(compOperator _ parsedNumber)     	
+        	(eqOperator SP ((SQUOTE parsedStr SQUOTE) / parsedNumber)) / 
+        	(compOperator SP parsedNumber)     	
       	)
       )  
 fieldRef = f:field 
@@ -226,6 +230,8 @@ eqOperator
 compOperator 
 	= compOperator:("lt" / "gt" / "le" / "ge") 
     { filterExpr.appendWhereClause([compOperators[compOperator]]); }	
+strEntireVal = val:$(( SQUOTEInString / pcharNoSQUOTE )*)
+	{ return { val }; }
 parsedStr 
 	= val:strEntireVal 
     { filterExpr.appendWhereClause([val]); }
@@ -235,20 +241,6 @@ number "number"
 parsedNumber
 	= val:number 
     { filterExpr.appendWhereClause([val]); }
-    
-    
-// ---------- URI syntax [RFC3986] ----------
-// ----------
-otherDelims   = "!" / "(" / ")" / "*" / "+" / "," / ";"
-unreserved = [A-Za-z] / [0-9] / " " / "-" / "." / "_" / "~"
-pcharNoSQUOTE = unreserved / otherDelims / "$" / "&" / "=" / ":" / "@"
-SQUOTE "quotation mark" = "'"
-strEntireVal = val:$(( SQUOTEInString / pcharNoSQUOTE )*)
-	{ return { val }; }
-string "string literal"
-	= val: $(SQUOTE strEntireVal SQUOTE)
-    { console.log('val', val) }
-SQUOTEInString = SQUOTE SQUOTE // two consecutive single quotes represent one within a string literal
 
     
 // ---------- String functions ----------
@@ -257,77 +249,91 @@ SQUOTEInString = SQUOTE SQUOTE // two consecutive single quotes represent one wi
 // ---------- "contains" ----------
 //
 containsFunc 
-	= $('(' fieldRef ',' SQUOTE containsStrArg SQUOTE ')')
+	= $( "contains" OPEN ( stringFuncCall / fieldRef ) COMMA SQUOTE containsStrArg SQUOTE CLOSE )
+	{ console.log('funcCallRes', funcCallRes) }
 containsStrArg = val:strEntireVal
-	{ filterExpr.appendLikeFunc('contains', val); }
+	{  
+    	filterExpr.appendLikeFunc('contains', val);
+		const curWhereClause = filterExpr.getParsedWhereClause();
+		filterExpr.innerFuncAppendLink = curWhereClause[curWhereClause.length-3]
+											.args[1];
+		console.log('innerFuncAppendLink', filterExpr.innerFuncAppendLink);
+    }
 //
 // ---------- "endswith" ----------
 //
 endswithFunc 
-	= $('(' fieldRef ',' SQUOTE endswithStrArg SQUOTE ')')
+	= $( "endswith" OPEN fieldRef COMMA SQUOTE endswithStrArg SQUOTE CLOSE)
 endswithStrArg = val:strEntireVal
 	{ filterExpr.appendLikeFunc('endswith', val); }
 //   
 // ---------- "startswith" ----------
 //
 startswithFunc 
-	= $('(' fieldRef ',' SQUOTE startswithStrArg SQUOTE ')')
+	= $( "startswith" OPEN fieldRef COMMA SQUOTE startswithStrArg SQUOTE CLOSE )
 startswithStrArg = val:strEntireVal
 	{ filterExpr.appendLikeFunc('startswith', val); }
 //  
 // ---------- "length" ----------
 //
 lengthExpr 
-	= $('(' lengthExprField ')'  _ (compOperator / eqOperator) _ parsedNumber)    
+	= $( "length" OPEN lengthExprField CLOSE  SP (compOperator / eqOperator) SP parsedNumber )    
 lengthExprField = val:field
 	{ filterExpr.appendFuncArgs('length', val); }
 //    
 // ---------- "indexof" ----------
 //
 indexofExpr 
-	= $('(' indexofExprField ',' SQUOTE indexofStrArg SQUOTE ')'  _ (compOperator / eqOperator) _ parsedNumber)   
+	= $( "indexof" OPEN indexofExprField COMMA SQUOTE indexofStrArg SQUOTE CLOSE  SP (compOperator / eqOperator) SP indexofIntArg )   
 indexofExprField = val:field
 	{ filterExpr.appendFuncArgs('locate', val); }
 indexofStrArg = val:strEntireVal
 	{ filterExpr.updateLastFuncArgs(val); }
+indexofIntArg = numVal:number
+	{ let { val } = numVal; filterExpr.appendWhereClause([{val: ++val}]); }
 //    
 // ---------- "substring" ----------
 //
+substringFunc = "substring" OPEN substringExprField COMMA substringIntArg CLOSE
 substringExpr 
-	= $('(' substringExprField ',' substringIntArg ')' _ eqOperator _ SQUOTE parsedStr SQUOTE)   
+	= $( substringFunc SP eqOperator SP SQUOTE parsedStr SQUOTE )   
 substringExprField = val:field
 	{ filterExpr.appendFuncArgs('substring', val); }
 substringIntArg = numVal:number
-	{ let { val } = numVal; filterExpr.updateLastFuncArgs(++val); }
+	{ let { val } = numVal; filterExpr.updateLastFuncArgs({val: ++val}); }
 //
 // ---------- "tolower" ----------
 //
+tolowerFunc = "tolower" OPEN tolowerExprField CLOSE
 tolowerExpr 
-	= $('(' tolowerExprField ')' _ eqOperator _ SQUOTE parsedStr SQUOTE)    
+	= $( tolowerFunc SP eqOperator SP SQUOTE parsedStr SQUOTE )    
 tolowerExprField = val:field
 	{ filterExpr.appendFuncArgs('lower', val); }
 //
 // ---------- "toupper" ----------
 //
+toupperFunc = "toupper" OPEN toupperExprField CLOSE
 toupperExpr 
-	= $('(' toupperExprField ')' _ eqOperator _ SQUOTE parsedStr SQUOTE)
+	= $( toupperFunc SP eqOperator SP SQUOTE parsedStr SQUOTE )
 toupperExprField = val:field
 	{ filterExpr.appendFuncArgs('upper', val); }
 //   
 // ---------- "trim" ----------
 //
+trimFunc = "trim" OPEN trimExprField CLOSE
 trimExpr 
-	= $('(' trimExprField ')' _ eqOperator _ SQUOTE parsedStr SQUOTE)
+	= $( trimFunc SP eqOperator SP SQUOTE parsedStr SQUOTE )
 trimExprField = val:field
 	{ filterExpr.appendFuncArgs('trim', val); }
 
 //   
 // ---------- "concat" ----------
 //
-concatExpr = concatExprPiece _ eqOperator _ SQUOTE parsedStr SQUOTE
+// concatFunc = 
+concatExpr = "concat" concatExprPiece SP eqOperator SP SQUOTE parsedStr SQUOTE
 
 concatExprPiece 
-	= $(concatName '(' (concatExprPiece / concatExprFieldOne) ',' SQUOTE concatExprStr SQUOTE ')')
+	= $(concatName OPEN (concatExprPiece / concatExprFieldOne) COMMA SQUOTE concatExprStr SQUOTE CLOSE)
 	{ filterExpr.decrementConcutLevel(); }
 concatName = "concat" 
 	{ filterExpr.incrementConcutLevel(); }
@@ -340,7 +346,24 @@ concatExprStr = val:strEntireVal
 	{ 
     	console.log('concat str:', val);
     }
-    
+
+
+// ------ Function expressions -------
+//
+stringFuncCall = val:(
+                    tolowerFunc / 
+                    substringFunc /
+                    toupperFunc /
+                    trimFunc 
+)
+                {
+					// filterExpr.innerFuncAppendLink
+                    console.log('filterExpr.innerFuncAppendLink', filterExpr.innerFuncAppendLink)
+                }
+                    //concatFunc 
+
+
+            
 
 
 
@@ -388,6 +411,49 @@ orderby = o:$[^,?&()]+
             ]
         }
     }
+
+//
+// ---------- URI sintax ----------
+//
+otherDelims   = "!" / "(" / ")" / "*" / "+" / "," / ";"
+unreserved = [A-Za-z] / [0-9] / " " / "-" / "." / "_" / "~"
+pcharNoSQUOTE = unreserved / otherDelims / "$" / "&" / "=" / ":" / "@"
+SQUOTEInString = SQUOTE SQUOTE // two consecutive single quotes represent one within a string literal
+
+
+//   
+// ---------- Punctuation ----------
+//
+
+WS "whitespace" = ( SP / HTAB )*  
+
+AT     = "@" 
+COLON  = ":" 
+COMMA  = "," 
+EQ     = "="
+SIGN   = "+" / "-"
+SEMI   = ";" 
+STAR   = "*" 
+SQUOTE = "'"
+OPEN  = "(" 
+CLOSE = ")" 
+
+
+//   
+// ---------- ABNF core definitions ----------
+//
+
+ALPHA "letter" = [A-Za-z] 
+AtoF "A to F" = "A" / "B" / "C" / "D" / "E" / "F" 
+DIGIT "digit" = [0-9] 
+HEXDIG "hexing" = DIGIT / AtoF 
+DQUOTE "double quote" = '"'
+SP "space" = ' ' 
+HTAB "horizontal tab" = '	' 
+WSP "white space" = SP / HTAB 
+BIT = "0" / "1" 
+RWS = ( SP / HTAB )+  // "required" whitespace 
+
 
 //-- Whitespaces
 _ "one or more whitespaces" = $[ \t\n]+ 
