@@ -32,13 +32,9 @@
     	le: '<=',
     	ge: '>=',
     }
-    let funcAppendLink;
-    let funcCallRes = [];
    
      function FilterExpr() {
     	let parsedWhereClause = [];
-        let concatLevel = 0; // to nested "concat expressions"
-        let innerFuncAppendLink;
 
         function appendWhereClause(body) {
     		if(!parsedWhereClause) {
@@ -51,84 +47,9 @@
         	return parsedWhereClause; 
         }
         
-        function appendLikeFunc(funcName, val) {
-        	const argsOptions = {
-            	contains: [ "'%'", val, "'%'"],
-                startswith: [ val, "'%'"],
-                endswith: [ "'%'", val ]
-            }
-            const args = argsOptions[funcName];
-            
-        	appendWhereClause([ 
-         		'like',
-    			{ 
-            		func: 'concat', 
-                	args
-            	},
-            	'escape',
-    			"'^'"
-    		]);
-        }
-       
-        function appendFuncArgs(funcName, refObj) {
-        	appendWhereClause([{
-      			func: funcName,
-      			args: [ refObj ]    
-    		}]);
-        }
-        
-        function updateLastFuncArgs(val) {
-        	const funcObj = parsedWhereClause.pop();
-        	parsedWhereClause = [...parsedWhereClause, {...funcObj, args: [...funcObj.args, val]}]
-        }
-        
-        function createConcutArgsStructure(refObj) {  
-        	function createArgs(curLevel) { 
-            	return curLevel === 1 ? [{
-          			func: 'concat',
-                    args: [ refObj ] 
-        		}] : [{
-          			func: 'concat',
-                    args: [ ...createArgs(curLevel-1) ] 
-        		}]
-            }
-
-            console.log('concatNestingLevel', concatLevel);
-        	if(concatLevel === 1) {
-                parsedWhereClause = [...parsedWhereClause, {
-      				func: 'concut',
-      				args: [ refObj ]    
-    			}];
-        	} else {
-            	parsedWhereClause = [...parsedWhereClause, ...createArgs(concatLevel)]; 
-            } 
-        }
-        function incrementConcutLevel() {
-        	concatLevel++;
-        }
-        function decrementConcutLevel() {
-        	concatLevel--;
-        }
-        
         return {
         	appendWhereClause,
             getParsedWhereClause,
-           
-            // for "contains" / "endswith" / "startswith" functions
-            appendLikeFunc,
-            
-            // for "length" / "indexof" / "tolower" / "toupper" / "trim" functions
-            appendFuncArgs,
-            
-            // for "indexof" / "substring" functions
-            updateLastFuncArgs,
-            
-            // for "concut" func only
-            incrementConcutLevel,
-            decrementConcutLevel,
-            createConcutArgsStructure,
-
-            innerFuncAppendLink
         }
     }	
 }
@@ -161,8 +82,6 @@ QueryOptions = (
 
 FilterExprSequence = (Expr (SP logicalOperator SP Expr)*)
 
-FilterCompletion = (SP logicalOperator SP Expr)*
-
 Expr = (
 		(notOperator SP)? 
         (
@@ -180,7 +99,8 @@ Expr = (
         toupperExpr /
         trimExpr /
         concatExpr /
-        compareExpr
+        compareStrExpr /
+		compareNumExpr
     )
 
 GroupedExpr = (startGroup FilterExprSequence closeGroup) 
@@ -211,160 +131,298 @@ closeGroup
 
 // ---------- Single $filter expression ----------
 // ---------- 
-compareExpr
-	= expr:$(
-    	fieldRef SP 
-        (
-        	(eqOperator SP ((SQUOTE parsedStr SQUOTE) / parsedNumber)) / 
-        	(compOperator SP parsedNumber)     	
-      	)
-      )  
-fieldRef = f:field 
-	{ filterExpr.appendWhereClause([f]); }
+compareStrExpr 
+	= fieldRef:field SP
+	  operatorVal:eqOperator SP
+	  strVal:strLiteral 
+	{ 
+		filterExpr.appendWhereClause([
+			fieldRef, operatorVal, strVal
+		])
+	}
+compareNumExpr 
+	= fieldRef:field SP
+	  operatorVal:( eqOperator / numCompOperator ) SP
+	  numVal:number 
+	{ 
+		filterExpr.appendWhereClause([
+			fieldRef, operatorVal, numVal
+		])
+	}
 field "field name" 
 	= field:$([a-zA-Z] [_a-zA-Z0-9]*) 
     { return { ref: [field] }; }
 eqOperator 
-	= eqOperator:("eq" / "ne") 
-    { filterExpr.appendWhereClause([compOperators[eqOperator]]); } 
-compOperator 
-	= compOperator:("lt" / "gt" / "le" / "ge") 
-    { filterExpr.appendWhereClause([compOperators[compOperator]]); }	
-strEntireVal = val:$(( SQUOTEInString / pcharNoSQUOTE )*)
+	= operatorVal:("eq" / "ne") 
+    { return compOperators[operatorVal]; } 
+numCompOperator 
+	= operatorVal:("lt" / "gt" / "le" / "ge") 
+	{ return compOperators[operatorVal]; }	
+strEntry = val:$( ( SQUOTEInString / pcharNoSQUOTE )* )
 	{ return { val }; }
-parsedStr 
-	= val:strEntireVal 
-    { filterExpr.appendWhereClause([val]); }
 number "number" 
 	= number:$([0-9]+ (('.') [0-9]+)?) 
-    { console.log(number,Number(number)); return { val: Number(number) }; }
-parsedNumber
-	= val:number 
-    { filterExpr.appendWhereClause([val]); }
+    { return { val: Number(number) }; }
+
 
     
-// ---------- String functions ----------
+
+// ---------- Function expressions ----------
 // ---------- 
+strFuncCall = strFuncObj:(
+				substringFunc / 
+			  	tolowerFunc /
+			  	toupperFunc /
+			  	trimFunc /
+				concatFunc
+			  )
+			  { 
+				console.log('strFuncObj',strFuncObj); 
+			  	return strFuncObj;
+			  }
+
+strLiteral = SQUOTE strArgVal:strEntry SQUOTE
+	{ return strArgVal; }
+	
+fieldArg = fieldRef:( strLiteral / field )
+		   { return fieldRef }
+
+
+
 //
 // ---------- "contains" ----------
 //
 containsFunc 
-	= $( "contains" OPEN ( stringFuncCall / fieldRef ) COMMA SQUOTE containsStrArg SQUOTE CLOSE )
-	{ console.log('funcCallRes', funcCallRes) }
-containsStrArg = val:strEntireVal
+	= "contains" 
+	  OPEN
+	  	fieldRef:( strFuncCall / fieldArg ) COMMA 
+		SQUOTE containsStrArg:strEntry SQUOTE 
+	  CLOSE 
 	{  
-    	filterExpr.appendLikeFunc('contains', val);
-		const curWhereClause = filterExpr.getParsedWhereClause();
-		filterExpr.innerFuncAppendLink = curWhereClause[curWhereClause.length-3]
-											.args[1];
-		console.log('innerFuncAppendLink', filterExpr.innerFuncAppendLink);
+    	filterExpr.appendWhereClause([
+			fieldRef,
+         	'like',
+    		{ 
+            	func: 'concat', 
+               	args:  [ "'%'", containsStrArg, "'%'"]
+            },
+            'escape',
+    		"'^'"
+		]);
     }
 //
 // ---------- "endswith" ----------
 //
 endswithFunc 
-	= $( "endswith" OPEN fieldRef COMMA SQUOTE endswithStrArg SQUOTE CLOSE)
-endswithStrArg = val:strEntireVal
-	{ filterExpr.appendLikeFunc('endswith', val); }
+	= "endswith" 
+	  OPEN 
+	  	fieldRef:( strFuncCall / fieldArg ) COMMA 
+	  	SQUOTE endswithStrArg:strEntry SQUOTE
+	  CLOSE
+	{ 
+		filterExpr.appendWhereClause([    
+			fieldRef,
+         	'like',
+    		{ 
+            	func: 'concat', 
+               	args:  [ "'%'", endswithStrArg]
+            },
+            'escape',
+    		"'^'"
+		]);
+	}
 //   
 // ---------- "startswith" ----------
 //
 startswithFunc 
-	= $( "startswith" OPEN fieldRef COMMA SQUOTE startswithStrArg SQUOTE CLOSE )
-startswithStrArg = val:strEntireVal
-	{ filterExpr.appendLikeFunc('startswith', val); }
+	= "startswith" 
+	  OPEN 
+	  	fieldRef:( strFuncCall / fieldArg ) COMMA
+		SQUOTE startswithStrArg:strEntry SQUOTE
+	  CLOSE 
+	{ 
+		filterExpr.appendWhereClause([    
+			fieldRef,
+         	'like',
+    		{ 
+            	func: 'concat', 
+               	args:  [ startswithStrArg, "'%'" ]
+            },
+            'escape',
+    		"'^'"
+		]);
+	}
 //  
 // ---------- "length" ----------
 //
 lengthExpr 
-	= $( "length" OPEN lengthExprField CLOSE  SP (compOperator / eqOperator) SP parsedNumber )    
-lengthExprField = val:field
-	{ filterExpr.appendFuncArgs('length', val); }
+	= "length"
+	  OPEN
+	  	fieldRef:( strFuncCall / fieldArg ) 
+	  CLOSE  
+	  SP operatorVal:(numCompOperator / eqOperator) SP
+	  numVal:number     
+	{
+		filterExpr.appendWhereClause([
+			{
+      			func: 'length',
+      			args: [ fieldRef ]    
+			},
+			operatorVal,
+			numVal,
+		]);
+	}
 //    
 // ---------- "indexof" ----------
 //
 indexofExpr 
-	= $( "indexof" OPEN indexofExprField COMMA SQUOTE indexofStrArg SQUOTE CLOSE  SP (compOperator / eqOperator) SP indexofIntArg )   
-indexofExprField = val:field
-	{ filterExpr.appendFuncArgs('locate', val); }
-indexofStrArg = val:strEntireVal
-	{ filterExpr.updateLastFuncArgs(val); }
-indexofIntArg = numVal:number
-	{ let { val } = numVal; filterExpr.appendWhereClause([{val: ++val}]); }
+	= "indexof"
+	  OPEN
+	  	fieldRef:( strFuncCall / fieldArg ) COMMA
+		SQUOTE strArgVal:strEntry SQUOTE
+	  CLOSE 
+	  SP operatorVal:(numCompOperator / eqOperator) SP 
+	  numVal:number  
+	  {
+		let { val } = numVal;
+		filterExpr.appendWhereClause([
+			{
+      			func: 'locate',
+      			args: [ fieldRef, strArgVal ]    
+			},
+			operatorVal,
+			{ val: ++val },
+		]);
+	  } 
 //    
 // ---------- "substring" ----------
-//
-substringFunc = "substring" OPEN substringExprField COMMA substringIntArg CLOSE
-substringExpr 
-	= $( substringFunc SP eqOperator SP SQUOTE parsedStr SQUOTE )   
-substringExprField = val:field
-	{ filterExpr.appendFuncArgs('substring', val); }
-substringIntArg = numVal:number
-	{ let { val } = numVal; filterExpr.updateLastFuncArgs({val: ++val}); }
+// need second call variant
+substringFunc 
+    = "substring"
+	  OPEN
+	  	fieldRef:( strFuncCall / fieldArg ) COMMA
+		numVal:number
+	  CLOSE
+	  { 
+		let { val } = numVal;
+		return {
+      		func: 'substring',
+      		args: [ fieldRef, {val: ++val} ]    
+		}
+	  }
+substringExpr
+	= substrObj:strFuncCall
+	  SP operatorVal:eqOperator SP 
+	  SQUOTE strArgVal:strEntry SQUOTE
+	  {
+		filterExpr.appendWhereClause([
+			substrObj,
+			operatorVal,
+			strArgVal,
+		]);
+	  }
 //
 // ---------- "tolower" ----------
 //
-tolowerFunc = "tolower" OPEN tolowerExprField CLOSE
+tolowerFunc 
+	= "tolower"
+	  OPEN
+	  	fieldRef:( strFuncCall / fieldArg )
+	  CLOSE
+	  {
+		return {
+      		func: 'lower',
+      		args: [ fieldRef ]    
+		}
+	  }
 tolowerExpr 
-	= $( tolowerFunc SP eqOperator SP SQUOTE parsedStr SQUOTE )    
-tolowerExprField = val:field
-	{ filterExpr.appendFuncArgs('lower', val); }
+	= tolowerObj:strFuncCall
+	  SP operatorVal:eqOperator SP 
+	  SQUOTE strArgVal:strEntry SQUOTE 
+	  {
+		filterExpr.appendWhereClause([
+			tolowerObj,
+			operatorVal,
+			strArgVal,
+		]);
+	  }
 //
 // ---------- "toupper" ----------
 //
-toupperFunc = "toupper" OPEN toupperExprField CLOSE
+toupperFunc 
+	= "toupper" 
+	  OPEN
+	  	fieldRef:( strFuncCall / fieldArg ) 
+	  CLOSE
+	  {
+		return {
+      		func: 'upper',
+      		args: [ fieldRef ]    
+		}
+	  }
 toupperExpr 
-	= $( toupperFunc SP eqOperator SP SQUOTE parsedStr SQUOTE )
-toupperExprField = val:field
-	{ filterExpr.appendFuncArgs('upper', val); }
+	= toupperObj:strFuncCall
+	  SP operatorVal:eqOperator SP 
+	  SQUOTE strArgVal:strEntry SQUOTE
+	  {
+		filterExpr.appendWhereClause([
+			toupperObj,
+			operatorVal,
+			strArgVal,
+		]);
+	  }
 //   
 // ---------- "trim" ----------
 //
-trimFunc = "trim" OPEN trimExprField CLOSE
-trimExpr 
-	= $( trimFunc SP eqOperator SP SQUOTE parsedStr SQUOTE )
-trimExprField = val:field
-	{ filterExpr.appendFuncArgs('trim', val); }
+trimFunc 
+	= "trim"
+	  OPEN
+	  	fieldRef:( strFuncCall / fieldArg )
+	  CLOSE
+	  {
+		return {
+      		func: 'trim',
+      		args: [ fieldRef ]    
+		}
+	  }
+trimExpr
+	= trimObj:strFuncCall
+	  SP operatorVal:eqOperator SP 
+	  SQUOTE strArgVal:strEntry SQUOTE
+	  {
+		filterExpr.appendWhereClause([
+			trimObj,
+			operatorVal,
+			strArgVal,
+		]);
+	  }
 
 //   
 // ---------- "concat" ----------
 //
-// concatFunc = 
-concatExpr = "concat" concatExprPiece SP eqOperator SP SQUOTE parsedStr SQUOTE
-
-concatExprPiece 
-	= $(concatName OPEN (concatExprPiece / concatExprFieldOne) COMMA SQUOTE concatExprStr SQUOTE CLOSE)
-	{ filterExpr.decrementConcutLevel(); }
-concatName = "concat" 
-	{ filterExpr.incrementConcutLevel(); }
-concatExprFieldOne = val:field
-	{ 
-    	console.log('concat field:', val); 
-        filterExpr.createConcutArgsStructure(val);
-    }
-concatExprStr = val:strEntireVal
-	{ 
-    	console.log('concat str:', val);
-    }
-
-
-// ------ Function expressions -------
-//
-stringFuncCall = val:(
-                    tolowerFunc / 
-                    substringFunc /
-                    toupperFunc /
-                    trimFunc 
-)
-                {
-					// filterExpr.innerFuncAppendLink
-                    console.log('filterExpr.innerFuncAppendLink', filterExpr.innerFuncAppendLink)
-                }
-                    //concatFunc 
-
-
-            
-
+concatFunc 
+	= "concat"
+	  OPEN	
+	  	fieldRef:( strFuncCall / fieldArg ) COMMA
+		SQUOTE strArgVal:strEntry SQUOTE
+	  CLOSE
+	  {
+		return {
+      		func: 'concat',
+      		args: [ fieldRef, strArgVal ]    
+		}
+	  }
+concatExpr
+	= concatObj:strFuncCall
+	  SP operatorVal:eqOperator SP 
+	  SQUOTE strArgVal:strEntry SQUOTE
+	  {
+		filterExpr.appendWhereClause([
+			concatObj,
+			operatorVal,
+			strArgVal,
+		]);
+	  }	  
 
 
 expand
@@ -456,5 +514,4 @@ RWS = ( SP / HTAB )+  // "required" whitespace
 
 
 //-- Whitespaces
-_ "one or more whitespaces" = $[ \t\n]+ 
 o "optional whitespaces" = $[ \t\n]* 
