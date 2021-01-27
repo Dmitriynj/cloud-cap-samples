@@ -33,7 +33,7 @@
     	ge: '>=',
     }
    
-     function FilterExpr() {
+    function FilterExpr() {
     	let parsedWhereClause = [];
 
         function appendWhereClause(body) {
@@ -85,24 +85,14 @@ FilterExprSequence = (Expr (SP logicalOperator SP Expr)*)
 Expr = (
 		(notOperator SP)? 
         (
-        	containsFunc / 
-        	endswithFunc /
-            startswithFunc /
+			boolFuncCall / 
             GroupedExpr
         )
     ) /
 	(
-    	lengthExpr /
-        indexofExpr /
-        substringExpr /
-        tolowerExpr /
-        toupperExpr /
-        trimExpr /
-        concatExpr /
-		dayExpr /
-		hourExpr /
-		minuteExpr /
-        compareStrExpr /
+		indexofExpr /
+		timeExpr /
+		compStrExpr /
 		compareNumExpr
     )
 
@@ -134,24 +124,7 @@ closeGroup
 
 // ---------- Single $filter expression ----------
 // ---------- 
-compareStrExpr 
-	= fieldRef:field SP
-	  operatorVal:eqOperator SP
-	  strVal:strLiteral 
-	{ 
-		filterExpr.appendWhereClause([
-			fieldRef, operatorVal, strVal
-		])
-	}
-compareNumExpr 
-	= fieldRef:field SP
-	  operatorVal:( eqOperator / numCompOperator ) SP
-	  numVal:number 
-	{ 
-		filterExpr.appendWhereClause([
-			fieldRef, operatorVal, numVal
-		])
-	}
+
 field "field name" 
 	= field:$([a-zA-Z] [_a-zA-Z0-9]*) 
     { return { ref: [field] }; }
@@ -161,169 +134,151 @@ eqOperator
 numCompOperator 
 	= operatorVal:("lt" / "gt" / "le" / "ge") 
 	{ return compOperators[operatorVal]; }	
-strEntry = val:$( ( SQUOTEInString / pcharNoSQUOTE )* )
-	{ return { val }; }
 
-
-
-    
 
 // ---------- Function expressions ----------
 // ---------- 
-strFuncCall = strFuncObj:(
-				substringFunc / 
-			  	tolowerFunc /
-			  	toupperFunc /
-			  	trimFunc /
-				concatFunc
-			  )
-			  { 
-			  	return strFuncObj;
-			  }
-	
-fieldArg = fieldRef:( strLiteral / field )
-		   { return fieldRef }
+compStrExpr 
+	= val:(
+		firstArgObj:strArg
+	  	SP operatorVal:eqOperator SP 
+	  	secondArgObj:strArg
+      ) 
+      {  
+      	const res = val.filter(cur => cur !== ' ');
+		filterExpr.appendWhereClause([...res]);
+	  }
+strArg = (
+	substringFunc / 
+	tolowerFunc /
+	toupperFunc /
+	trimFunc /
+	concatFunc /
+	strLiteral /
+	field
+) 
 
+compareNumExpr 
+	= val:(
+		firstArgObj:numberArg
+	  	SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  	secondArgObj:numberArg
+      ) 
+      {  
+      	const res = val.filter(cur => cur !== ' ');
+		filterExpr.appendWhereClause([...val.filter(cur => cur !== ' ')]);
+	  }
+numberArg = (
+	lengthFunc /
+	indexofFunc /
+	hourFunc /
+	dayFunc /
+	minuteFunc /
+	monthFunc /
+	secondFunc /
+	yearFunc /
+	roundFunc /
+	number /
+	field
+)
+
+
+// ---------- Functions ----------
+// Type, Geo functions are not supported,
+// "maxdatetime", "mindatetime", "fractionalseconds",
+// "totaloffsetminutes", "date", "totalseconds",
+// "floor", "ceiling"
+// also are not supported by CAP
+// -------------------------------
+// 
 // ---------- String functions ----------
-//
-// ---------- "contains" ----------
-//
-containsFunc 
-	= "contains" 
+// ---------- "contains" / "endswith" / "startswith" ----------
+boolFuncCall 
+	= funcName:( "contains" / "endswith" / "startswith" )
 	  OPEN
-	  	fieldRef:( strFuncCall / fieldArg ) COMMA 
-		containsStrArg:( strFuncCall / strLiteral )
+	  	fieldRef:strArg COMMA 
+		containsStrArg:strArg
 	  CLOSE 
-	{  
-    	filterExpr.appendWhereClause([
+	  {
+		function getLikeArgs (value) {
+          	const funcArgs = {
+			  contains: [ "'%'", value, "'%'" ],
+			  endswith: [ "'%'", value ],
+			  startswith: [ value, "'%'" ]
+		  	};
+          	return funcArgs[funcName];
+        };
+		filterExpr.appendWhereClause([
 			fieldRef,
          	'like',
     		{ 
             	func: 'concat', 
-               	args:  [ "'%'", containsStrArg, "'%'"]
+               	args: getLikeArgs(containsStrArg)
             },
             'escape',
     		"'^'"
 		]);
-    }
-//
-// ---------- "endswith" ----------
-//
-endswithFunc 
-	= "endswith" 
-	  OPEN 
-	  	fieldRef:( strFuncCall / fieldArg ) COMMA 
-	  	endswithStrArg:( strFuncCall / strLiteral )
-	  CLOSE
-	{ 
-		filterExpr.appendWhereClause([    
-			fieldRef,
-         	'like',
-    		{ 
-            	func: 'concat', 
-               	args:  [ "'%'", endswithStrArg]
-            },
-            'escape',
-    		"'^'"
-		]);
-	}
-//   
-// ---------- "startswith" ----------
-//
-startswithFunc 
-	= "startswith" 
-	  OPEN 
-	  	fieldRef:( strFuncCall / fieldArg ) COMMA
-		startswithStrArg:( strFuncCall / strLiteral )
-	  CLOSE 
-	{ 
-		filterExpr.appendWhereClause([    
-			fieldRef,
-         	'like',
-    		{ 
-            	func: 'concat', 
-               	args:  [ startswithStrArg, "'%'" ]
-            },
-            'escape',
-    		"'^'"
-		]);
-	}
-//  
+	  }  
 // ---------- "length" ----------
-//
-lengthExpr 
+lengthFunc 
 	= "length"
 	  OPEN
-	  	fieldRef:( strFuncCall / fieldArg ) 
-	  CLOSE  
-	  SP operatorVal:(numCompOperator / eqOperator) SP
-	  numVal:number     
-	{
-		filterExpr.appendWhereClause([
-			{
-      			func: 'length',
-      			args: [ fieldRef ]    
-			},
-			operatorVal,
-			numVal,
-		]);
-	}
-//    
+	  	fieldRef:strArg 
+	  CLOSE
+	  {
+		return {
+      		func: 'length',
+      		args: [ fieldRef ]    
+		} 
+	  }
 // ---------- "indexof" ----------
-//
-indexofExpr 
+indexofFunc 
 	= "indexof"
 	  OPEN
-	  	fieldRef:( strFuncCall / fieldArg ) COMMA
-		strArgVal:( strFuncCall / strLiteral )
-	  CLOSE 
-	  SP operatorVal:(numCompOperator / eqOperator) SP 
-	  numVal:number  
-	  {
-		let { val } = numVal;
-		filterExpr.appendWhereClause([
-			{
-      			func: 'locate',
-      			args: [ fieldRef, strArgVal ]    
-			},
-			operatorVal,
-			{ val: ++val },
-		]);
-	  } 
-//    
-// ---------- "substring" ----------
-// need second call variant
-substringFunc 
-    = "substring"
-	  OPEN
-	  	fieldRef:( strFuncCall / fieldArg ) COMMA
-		numVal:number
+	  	fieldRef:strArg COMMA
+		strArgVal:strArg
 	  CLOSE
-	  { 
-		let { val } = numVal;
+	  {
 		return {
-      		func: 'substring',
-      		args: [ fieldRef, {val: ++val} ]    
+      		func: 'locate',
+      		args: [ fieldRef, strArgVal ]    
 		}
 	  }
-substringExpr
-	= substrObj:strFuncCall
-	  SP operatorVal:eqOperator SP 
-	  strArgVal:( strFuncCall / strLiteral )
+indexofExpr 
+	= indexofFuncObj:indexofFunc 
+	  SP operatorVal:( eqOperator / numCompOperator ) SP
+	  numArg:numberArg
 	  {
+		let {val} = numArg;
 		filterExpr.appendWhereClause([
-			substrObj,
+			indexofFuncObj,
 			operatorVal,
-			strArgVal,
+			{ val: ++val }
 		]);
 	  }
-//
+// ---------- "substring" ----------
+substringFunc 
+	= "substring"
+	  OPEN
+	  	fieldRef:strArg COMMA
+		arg:( 
+			(numberArg COMMA numberArg) /
+			numberArg 
+		)	
+	  CLOSE
+       {
+		return {
+      		func: 'substring',
+			args: Array.isArray(arg) ?   
+				[fieldRef, ...arg.filter(cur => cur !== ',')] :
+				[fieldRef, arg]
+		}
+	  }
 // ---------- "tolower" ----------
-//
 tolowerFunc 
 	= "tolower"
 	  OPEN
-	  	fieldRef:( strFuncCall / fieldArg )
+	  	fieldRef:strArg
 	  CLOSE
 	  {
 		return {
@@ -331,24 +286,11 @@ tolowerFunc
       		args: [ fieldRef ]    
 		}
 	  }
-tolowerExpr 
-	= tolowerObj:strFuncCall
-	  SP operatorVal:eqOperator SP 
-	  strArgVal:( strFuncCall / strLiteral )  
-	  {
-		filterExpr.appendWhereClause([
-			tolowerObj,
-			operatorVal,
-			strArgVal,
-		]);
-	  }
-//
 // ---------- "toupper" ----------
-//
 toupperFunc 
 	= "toupper" 
 	  OPEN
-	  	fieldRef:( strFuncCall / fieldArg ) 
+	  	fieldRef:strArg 
 	  CLOSE
 	  {
 		return {
@@ -356,24 +298,11 @@ toupperFunc
       		args: [ fieldRef ]    
 		}
 	  }
-toupperExpr 
-	= toupperObj:strFuncCall
-	  SP operatorVal:eqOperator SP 
-	  strArgVal:( strFuncCall / strLiteral ) 
-	  {
-		filterExpr.appendWhereClause([
-			toupperObj,
-			operatorVal,
-			strArgVal,
-		]);
-	  }
-//   
 // ---------- "trim" ----------
-//
 trimFunc 
 	= "trim"
 	  OPEN
-	  	fieldRef:( strFuncCall / fieldArg )
+	  	fieldRef:strArg
 	  CLOSE
 	  {
 		return {
@@ -381,26 +310,12 @@ trimFunc
       		args: [ fieldRef ]    
 		}
 	  }
-trimExpr
-	= trimObj:strFuncCall
-	  SP operatorVal:eqOperator SP 
-	  strArgVal:( strFuncCall / fieldArg )
-	  {
-		filterExpr.appendWhereClause([
-			trimObj,
-			operatorVal,
-			strArgVal,
-		]);
-	  }
-
-//   
 // ---------- "concat" ----------
-//
 concatFunc 
 	= "concat"
 	  OPEN	
-	  	fieldRef:( strFuncCall / fieldArg ) COMMA
-		strArgVal:( strFuncCall / fieldArg )
+	  	fieldRef:strArg COMMA
+		strArgVal:strArg
 	  CLOSE
 	  {
 		return {
@@ -408,32 +323,7 @@ concatFunc
       		args: [ fieldRef, strArgVal ]    
 		}
 	  }
-concatExpr
-	= concatObj:strFuncCall
-	  SP operatorVal:eqOperator SP 
-	  strArgVal:( strFuncCall / fieldArg )
-	  {
-		filterExpr.appendWhereClause([
-			concatObj,
-			operatorVal,
-			strArgVal,
-		]);
-	  }	 
-
-// Date functions
-// 
-// ---------- "date" ----------
-//
-// date is not suppported yet in CAP
-// dateFunc 
-// 	= "date"
-// 	  OPEN
-// 		dateVal:dateValue
-// 	  CLOSE
-// 	  {  }
-//
 // ---------- "day" ----------
-//
 dayFunc 
 	= "day"
 	  OPEN
@@ -445,20 +335,7 @@ dayFunc
       		args: [ fieldRef ]    
 		}
 	  }
-dayExpr 
-	= dayObj:dayFunc
-	  SP operatorVal:( numCompOperator / eqOperator ) SP 
-	  numArgVal:number
-	  {
-		filterExpr.appendWhereClause([
-			dayObj,
-			operatorVal,
-			numArgVal,
-		]);
-	  }
-//
-// ---------- "day" ----------
-//	   
+// ---------- "hour" ----------
 hourFunc 
 	= "hour"
 	  OPEN
@@ -470,24 +347,7 @@ hourFunc
       		args: [ fieldRef ]    
 		}
 	  }
-hourExpr 
-	= hourObj:hourFunc
-	  SP operatorVal:( numCompOperator / eqOperator ) SP 
-	  numArgVal:number
-	  {
-		filterExpr.appendWhereClause([
-			hourObj,
-			operatorVal,
-			numArgVal,
-		]);
-	  }
-//	
-// ---------- "maxdatetime" "mindatetime" "fractionalseconds" ----------
-// is not supported by CAP
-// 
-//
 // ---------- "minute" ----------
-//
 minuteFunc 
 	= "minute"
 	  OPEN
@@ -499,16 +359,76 @@ minuteFunc
       		args: [ fieldRef ]    
 		}
 	  }
-minuteExpr 
-	= minuteObj:minuteFunc
+// ---------- "month" ----------
+monthFunc 
+	= "month"
+	  OPEN
+ 		fieldRef:(dateTimeOffsetValue / dateValue / field)
+ 	  CLOSE
+	  {
+		return {
+      		func: 'minute',
+      		args: [ fieldRef ]    
+		}
+	  }
+// ---------- "second" ----------
+secondFunc 
+	= "second"
+	  OPEN
+ 		fieldRef:(dateTimeOffsetValue / timeOfDayValue / field)
+ 	  CLOSE
+	  {
+		return {
+      		func: 'second',
+      		args: [ fieldRef ]    
+		}
+	  }
+// ---------- "year" ----------
+yearFunc 
+	= "year"
+	  OPEN
+ 		fieldRef:(dateTimeOffsetValue / dateValue / field)
+ 	  CLOSE
+	  {
+		return {
+      		func: 'year',
+      		args: [ fieldRef ]    
+		}
+	  }
+// ---------- "time" ----------
+timeFunc 
+	= "time"
+	  OPEN
+ 		fieldRef:(dateTimeOffsetValue / field)
+ 	  CLOSE
+	  {
+		  return {
+			  func: 'time',
+      		args: [ fieldRef ]    
+		}
+	  }
+timeExpr 
+	= timeObj:timeFunc
 	  SP operatorVal:( numCompOperator / eqOperator ) SP 
-	  numArgVal:number
+	  argVal:timeOfDayValue
 	  {
 		filterExpr.appendWhereClause([
-			minuteObj,
+			  timeObj,
 			operatorVal,
-			numArgVal,
+			argVal,
 		]);
+	  }
+// ---------- "round" ----------
+roundFunc 
+	= "round"
+	  OPEN
+ 		fieldRef:(dateTimeOffsetValue / field)
+ 	  CLOSE
+	  {
+		  return {
+			func: 'round',
+      		args: [ fieldRef ]    
+		}
 	  }
 
 
@@ -557,12 +477,11 @@ orderby = o:$[^,?&()]+
         }
 	}
 
-//
+
 // Primitive literals	
 //
-
 // date
-dateValue = val:$( year "-" month "-" day )
+dateValue "Edm.Date" = val:$( year "-" month "-" day )
 	{ return { val } }
 year  = "-"? ( "0" DIGIT DIGIT DIGIT / oneToNine DIGIT DIGIT DIGIT )
 month = "0" oneToNine
@@ -573,7 +492,7 @@ day   = "0" oneToNine
 oneToNine = "1" / "2" / "3" / "4" / "5" / "6" / "7" / "8" / "9"    
 
 // datetime offset
-dateTimeOffsetValue = val:$( year "-" month "-" day "T" hour ":" minute ( ":" second ( "." fractionalSeconds )? )? ( "Z" / SIGN hour ":" minute ))
+dateTimeOffsetValue "Edm.DateTimeOffset" = val:$( year "-" month "-" day "T" hour ":" minute ( ":" second ( "." fractionalSeconds )? )? ( "Z" / SIGN hour ":" minute ))
 	{ return { val: (new Date(val)).toISOString() } }
 hour   = ( "0" / "1" ) DIGIT
        / "2" ( "0" / "1" / "2" / "3" ) 
@@ -585,20 +504,52 @@ fractionalSeconds = DIGIT DIGIT? DIGIT? DIGIT?
                     DIGIT? DIGIT? DIGIT? DIGIT?
 
 // time of day value
-timeOfDayValue = val:$( hour ":" minute ( ":" second ( "." fractionalSeconds )? )? )
+timeOfDayValue "Edm.TimeOfDay" = val:$( hour ":" minute ( ":" second ( "." fractionalSeconds )? )? )
 	{ return { val } }
 
 // string
-strLiteral = SQUOTE strArgVal:strEntry SQUOTE
+strLiteral "Edm.String" = SQUOTE strArgVal:strEntry SQUOTE
 	{ return strArgVal; }
+strEntry = val:$( ( SQUOTEInString / pcharNoSQUOTE )* )
+	{ return { val }; }
 
 // number
-number "number" 
-	= number:$([0-9]+ (('.') [0-9]+)?) 
-    { return { val: Number(number) }; }
+number = val:$(
+			doubleValue /
+			singleValue /	
+			decimalValue /
+			int64Value /	
+			int32Value /
+			int16Value
+		) { 
+        	console.log('number', val)
+			return { val: Number(val) }; 
+		}
+
+// IEEE 754 binary64 floating-point number (15-17 decimal digits)
+doubleValue "Edm.Double" = decimalValue ( "e" SIGN? DIGIT+ )? / nanInfinity 
+decimalValue "Edm.Decimal" = SIGN? DIGIT+ ("." DIGIT+)?
+// IEEE 754 binary32 floating-point number (6-9 decimal digits)
+singleValue "Edm.Single" = doubleValue 
+// numbers in the range from -9223372036854775808 to 9223372036854775807        
+// contains 1-19 digits
+int64Value "Edm.Int64" = SIGN? DIGIT DIGIT? DIGIT? DIGIT? DIGIT? 
+				   DIGIT? DIGIT? DIGIT? DIGIT? DIGIT? 
+				   DIGIT? DIGIT? DIGIT? DIGIT? DIGIT? 
+				   DIGIT? DIGIT? DIGIT? DIGIT? 
+// numbers in the range from -2147483648 to 2147483647
+// contains 1-15 digits
+int32Value "Emd.Int32"
+	= val:(SIGN? DIGIT DIGIT? DIGIT? DIGIT? DIGIT?
+			DIGIT? DIGIT? DIGIT? DIGIT? DIGIT?
+            DIGIT? DIGIT? DIGIT? DIGIT? DIGIT?)
+	{ return parseInt(val); }
+// numbers in the range from -32768 to 32767 
+// contains 1-5 digits
+int16Value "Edm.Int16" = SIGN? DIGIT DIGIT? DIGIT? DIGIT? DIGIT?
+nanInfinity = 'NaN' / '-INF' / 'INF'
 
 
-//
 // ---------- URI sintax ----------
 //
 otherDelims   = "!" / "(" / ")" / "*" / "+" / "," / ";"
@@ -606,11 +557,9 @@ unreserved = [A-Za-z] / [0-9] / " " / "-" / "." / "_" / "~"
 pcharNoSQUOTE = unreserved / otherDelims / "$" / "&" / "=" / ":" / "@"
 SQUOTEInString = SQUOTE SQUOTE // two consecutive single quotes represent one within a string literal
 
-
-//   
+ 
 // ---------- Punctuation ----------
 //
-
 WS "whitespace" = ( SP / HTAB )*  
 
 AT     = "@" 

@@ -50,8 +50,8 @@ Authorization: Basic eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFuZHJld0
 
 ### ------------------------------------------------------------------------
 # Get all current customer invoices
-GET {{browse-invoices-service}}/Invoices?$filter=invoiceDate ge now()
-Authorization: Basic eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imxlb25la29obGVyQHN1cmZldS5kZSIsIklEIjoyLCJyb2xlcyI6WyJjdXN0b21lciJdLCJpYXQiOjE2MTAzNjQ2NDYsImV4cCI6MTYxMDM2NTI0Nn0.7vjb1F8QH12CaQrsWOcuRs9-PlBql9WjkAYEjnZRNqs
+GET {{browse-invoices-service}}/Invoices?$filter=year(invoiceDate) le 45
+Authorization: Basic eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imxlb25la29obGVyQHN1cmZldS5kZSIsIklEIjoyLCJyb2xlcyI6WyJjdXN0b21lciJdLCJpYXQiOjE2MTE2NjMzMjAsImV4cCI6MTYxMTY2MzkyMH0.3DTg0CvnhkoyBjCHLyut1mE1mfF3d8pvqOO6W0jj188
 
 ### ------------------------------------------------------------------------
 ## Manage store service
@@ -90,7 +90,7 @@ GET {{browse-tracks-service}}/Tracks?$count=true
 
 ### ------------------------------------------------------------------------
 # Get Trakcs
-GET {{browse-tracks-service}}/Tracks?$select=ID,name,composer,unitPrice&$filter=substring(tolower(name),1) eq concat(name,'asfdg')&$count=true
+GET {{browse-tracks-service}}/Tracks?$select=ID,name,composer,unitPrice&$filter=isof('Edm.String',Edm.String)&$count=true
 
 ### ------------------------------------------------------------------------
 # Get Albums by artist ID axpanding tracks and artist
