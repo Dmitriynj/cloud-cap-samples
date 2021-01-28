@@ -90,7 +90,7 @@ aflterFilter = "" {
 FilterExprSequence = (Expr (SP logicalOperator SP Expr)*)
 GroupedExpr = (startGroup FilterExprSequence closeGroup) 
 Expr = (
-		(notOperator SP)?  ( boolFuncCall / GroupedExpr )
+		(notOperator SP)?  ( boolFunc / GroupedExpr )
     ) / ( commonExp )
 startGroup 
 	= OPEN
@@ -119,11 +119,41 @@ commonExp = val:(
 	}
 
 compStrExpr 
-	= val:(
-		firstArgObj:strArg
-	  	SP operatorVal:eqOperator SP 
-	  	secondArgObj:strArg
-      ) 
+	= firstArgObj:strArg
+	  SP operatorVal:eqOperator SP 
+	  secondArgObj:strArg
+compareNumExpr 
+	= firstArgObj:numberArg
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArgObj:numberArg
+dayExpr 
+	= firstArg:(dayFunc / dayVal)
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:(dayFunc / dayVal)
+hourExpr 
+	= firstArg:(hourFunc / hourVal) 
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:(hourFunc / hourVal)
+minuteExpr
+	= firstArg:( minuteFunc / minuteVal )
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:( minuteFunc / minuteVal )
+monthExpr
+	= firstArg:(monthFunc / monthVal)
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:(monthFunc / monthVal)
+secondExpr
+	= firstArg:(secondFunc / secondVal)
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:(secondFunc / secondVal)
+yearExpr
+	= firstArg:(yearFunc / yearVal)
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:(yearFunc / yearVal)
+timeExpr 
+	= firstArg:(timeFunc / timeOfDayValue)
+	  SP operatorVal:( numCompOperator / eqOperator ) SP 
+	  secondArg:(timeFunc / timeOfDayValue)
      
 strArg = (
 	substringFunc / 
@@ -133,15 +163,7 @@ strArg = (
 	concatFunc /
 	strLiteral /
 	field
-) 
-
-compareNumExpr 
-	= val:(
-		firstArgObj:numberArg
-	  	SP operatorVal:( eqOperator / numCompOperator ) SP 
-	  	secondArgObj:numberArg
-      ) 
-      
+)     
 numberArg = (
 	lengthFunc /
 	indexofFunc /
@@ -153,7 +175,7 @@ numberArg = (
 // ---------- Functions ----------
 // 
 // ---------- "contains" / "endswith" / "startswith" ----------
-boolFuncCall 
+boolFunc 
 	= funcName:( "contains" / "endswith" / "startswith" )
 	  OPEN
 	  	fieldRef:strArg COMMA 
@@ -287,10 +309,7 @@ dayFunc
       		args: [ fieldRef ]    
 		}
 	  }
-dayExpr 
-	= firstArg:(dayFunc / dayVal)
-	  SP operatorVal:( eqOperator / numCompOperator ) SP 
-	  secondArg:(dayFunc / dayVal)
+
 // ---------- "hour" ----------
 hourFunc 
 	= "hour"
@@ -303,10 +322,7 @@ hourFunc
       		args: [ fieldRef ]    
 		}
 	  }
-hourExpr 
-	= firstArg:(hourFunc / hourVal) 
-	  SP operatorVal:( eqOperator / numCompOperator ) SP 
-	  secondArg:(hourFunc / hourVal)
+
 // ---------- "minute" ----------
 minuteFunc 
 	= "minute"
@@ -319,10 +335,7 @@ minuteFunc
       		args: [ fieldRef ]    
 		}
 	  }
-minuteExpr
-	= firstArg:( minuteFunc / minuteVal )
-	  SP operatorVal:( eqOperator / numCompOperator ) SP 
-	  secondArg:( minuteFunc / minuteVal )
+
 // ---------- "month" ----------
 monthFunc 
 	= "month"
@@ -335,10 +348,7 @@ monthFunc
       		args: [ fieldRef ]    
 		}
 	  }
-monthExpr
-	= firstArg:(monthFunc / monthVal)
-	  SP operatorVal:( eqOperator / numCompOperator ) SP 
-	  secondArg:(monthFunc / monthVal)
+
 // ---------- "second" ----------
 secondFunc 
 	= "second"
@@ -351,10 +361,7 @@ secondFunc
       		args: [ fieldRef ]    
 		}
 	  }
-secondExpr
-	= firstArg:(secondFunc / secondVal)
-	  SP operatorVal:( eqOperator / numCompOperator ) SP 
-	  secondArg:(secondFunc / secondVal)
+
 // ---------- "year" ----------
 yearFunc 
 	= "year"
@@ -367,10 +374,7 @@ yearFunc
       		args: [ fieldRef ]    
 		}
 	  }
-yearExpr
-	= firstArg:(yearFunc / yearVal)
-	  SP operatorVal:( eqOperator / numCompOperator ) SP 
-	  secondArg:(yearFunc / yearVal)
+
 // ---------- "time" ----------
 timeFunc 
 	= "time"
@@ -383,10 +387,7 @@ timeFunc
       		args: [ fieldRef ]    
 		}
 	  }
-timeExpr 
-	= firstArg:(timeFunc / timeOfDayValue)
-	  SP operatorVal:( numCompOperator / eqOperator ) SP 
-	  secondArg:(timeFunc / timeOfDayValue)
+
 // ---------- "round" ----------
 roundFunc 
 	= "round"
