@@ -2,6 +2,11 @@
  * Odata Spec http://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/abnf/odata-abnf-construction-rules.txt
  * Future test cases http://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/abnf/odata-abnf-testcases.xml
  *
+ * Limitations: Type, Geo functions are not supported,
+ * maxdatetime, mindatetime, fractionalseconds,
+ * totaloffsetminutes, date, totalseconds,
+ * floor, ceiling also are not supported by CAP
+ *
  * Examples: 
  * Books
  * Books/201
@@ -81,13 +86,10 @@ QueryOptions = (
 // ----------
 
 FilterExprSequence = (Expr (SP logicalOperator SP Expr)*)
-
+GroupedExpr = (startGroup FilterExprSequence closeGroup) 
 Expr = (
 		(notOperator SP)? 
-        (
-			boolFuncCall / 
-            GroupedExpr
-        )
+        ( boolFuncCall / GroupedExpr )
     ) /
 	(
 		indexofExpr /
@@ -95,45 +97,12 @@ Expr = (
 		compStrExpr /
 		compareNumExpr
     )
-
-GroupedExpr = (startGroup FilterExprSequence closeGroup) 
-logicalOperator = operator:$("and" / "or") 
-	{
-    	console.log('logic operator:', operator);
-        filterExpr.appendWhereClause([operator]);
-    }
-notOperator 
-	= notOperator:$("not") 
-    {
-    	console.log('not operator:', notOperator);
-        filterExpr.appendWhereClause([notOperator]);
-    }
 startGroup 
 	= OPEN
-    {
-    	console.log('opening group');
-        filterExpr.appendWhereClause(['(']);
-    }  
+    { filterExpr.appendWhereClause(['(']); }  
 closeGroup
 	= CLOSE 
-    {
-    	console.log('closing group');
-        filterExpr.appendWhereClause([')']);
-    } 
-    
-
-// ---------- Single $filter expression ----------
-// ---------- 
-
-field "field name" 
-	= field:$([a-zA-Z] [_a-zA-Z0-9]*) 
-    { return { ref: [field] }; }
-eqOperator 
-	= operatorVal:("eq" / "ne") 
-    { return compOperators[operatorVal]; } 
-numCompOperator 
-	= operatorVal:("lt" / "gt" / "le" / "ge") 
-	{ return compOperators[operatorVal]; }	
+    { filterExpr.appendWhereClause([')']); } 
 
 
 // ---------- Function expressions ----------
@@ -171,8 +140,8 @@ compareNumExpr
 numberArg = (
 	lengthFunc /
 	indexofFunc /
-	hourFunc /
 	dayFunc /
+	hourFunc /
 	minuteFunc /
 	monthFunc /
 	secondFunc /
@@ -182,16 +151,8 @@ numberArg = (
 	field
 )
 
-
 // ---------- Functions ----------
-// Type, Geo functions are not supported,
-// "maxdatetime", "mindatetime", "fractionalseconds",
-// "totaloffsetminutes", "date", "totalseconds",
-// "floor", "ceiling"
-// also are not supported by CAP
-// -------------------------------
 // 
-// ---------- String functions ----------
 // ---------- "contains" / "endswith" / "startswith" ----------
 boolFuncCall 
 	= funcName:( "contains" / "endswith" / "startswith" )
@@ -267,11 +228,16 @@ substringFunc
 		)	
 	  CLOSE
        {
+		const args = Array.isArray(arg) ?   
+				[
+					fieldRef, 
+					...arg.filter(cur => cur !== ',')
+						  .map(({ val }) => ({ val: ++val }))
+				] :
+				[fieldRef, { val: ++arg.val }];
 		return {
       		func: 'substring',
-			args: Array.isArray(arg) ?   
-				[fieldRef, ...arg.filter(cur => cur !== ',')] :
-				[fieldRef, arg]
+			args: args 
 		}
 	  }
 // ---------- "tolower" ----------
@@ -513,6 +479,11 @@ strLiteral "Edm.String" = SQUOTE strArgVal:strEntry SQUOTE
 strEntry = val:$( ( SQUOTEInString / pcharNoSQUOTE )* )
 	{ return { val }; }
 
+// field name
+field "field name" 
+	= field:$([a-zA-Z] [_a-zA-Z0-9]*) 
+    { return { ref: [field] }; }
+
 // number
 number = val:$(
 			doubleValue /
@@ -573,11 +544,24 @@ SQUOTE = "'"
 OPEN  = "(" 
 CLOSE = ")" 
 
+// ---------- Operators ----------
+//
+eqOperator 
+	= operatorVal:("eq" / "ne") 
+    { return compOperators[operatorVal]; } 
+numCompOperator 
+	= operatorVal:("lt" / "gt" / "le" / "ge") 
+	{ return compOperators[operatorVal]; }	
+logicalOperator = operator:$("and" / "or") 
+	{ filterExpr.appendWhereClause([operator]); }
+notOperator 
+	= notOperator:$("not") 
+    { filterExpr.appendWhereClause([notOperator]); }
+
 
 //   
 // ---------- ABNF core definitions ----------
 //
-
 ALPHA "letter" = [A-Za-z] 
 AtoF "A to F" = "A" / "B" / "C" / "D" / "E" / "F" 
 DIGIT "digit" = [0-9] 
