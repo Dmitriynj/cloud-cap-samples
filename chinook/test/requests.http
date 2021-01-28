@@ -50,8 +50,8 @@ Authorization: Basic eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFuZHJld0
 
 ### ------------------------------------------------------------------------
 # Get all current customer invoices
-GET {{browse-invoices-service}}/Invoices?$filter=day(invoiceDate) eq 1
-Authorization: Basic eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imxlb25la29obGVyQHN1cmZldS5kZSIsIklEIjoyLCJyb2xlcyI6WyJjdXN0b21lciJdLCJpYXQiOjE2MTE3Nzk5NTQsImV4cCI6MTYxMTc4MDU1NH0.k3Op_aRYdSrFrrRwpCU5DOzoZVSUUE9pB5KrOZXMPYg
+GET {{browse-invoices-service}}/Invoices?$filter=round(total) eq 2
+Authorization: Basic eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imxlb25la29obGVyQHN1cmZldS5kZSIsIklEIjoyLCJyb2xlcyI6WyJjdXN0b21lciJdLCJpYXQiOjE2MTE4NTczNTgsImV4cCI6MTYxMTg1Nzk1OH0.miv1RgW1FJJvxb2u12INURd6senWcToHDkpvCzqNUUc
 
 ### ------------------------------------------------------------------------
 ## Manage store service

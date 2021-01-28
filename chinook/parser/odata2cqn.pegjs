@@ -72,31 +72,26 @@ QueryOptions = (
 	"$skip="   skip /
     "$count="  count /
     "$orderby=" orderby /
-    (("$filter=" {
-    	console.log('starting $filter');
-    	filterExpr = new FilterExpr();    
-    })  FilterExprSequence {
-    	console.log('end of $filter');
-    	SELECT.where = filterExpr.getParsedWhereClause();
-    })
+    (beforeFilter FilterExprSequence aflterFilter)
 )( o'&'o QueryOptions )?
 
 
 // ---------- Grouped $filter expression ----------
 // ----------
+beforeFilter = "$filter=" {
+    console.log('starting $filter');
+    filterExpr = new FilterExpr();    
+}
+aflterFilter = "" {
+    console.log('end of $filter');
+    SELECT.where = filterExpr.getParsedWhereClause();
+}
 
 FilterExprSequence = (Expr (SP logicalOperator SP Expr)*)
 GroupedExpr = (startGroup FilterExprSequence closeGroup) 
 Expr = (
-		(notOperator SP)? 
-        ( boolFuncCall / GroupedExpr )
-    ) /
-	(
-		indexofExpr /
-		timeExpr /
-		compStrExpr /
-		compareNumExpr
-    )
+		(notOperator SP)?  ( boolFuncCall / GroupedExpr )
+    ) / ( commonExp )
 startGroup 
 	= OPEN
     { filterExpr.appendWhereClause(['(']); }  
@@ -107,16 +102,29 @@ closeGroup
 
 // ---------- Function expressions ----------
 // ---------- 
+commonExp = val:(
+		timeExpr /
+		secondExpr /
+		minuteExpr /
+		hourExpr /
+		dayExpr /
+		monthExpr /
+		yearExpr /
+		compStrExpr /
+		compareNumExpr
+	)
+ 	{	  
+      	const res = val.filter(cur => cur !== ' ');
+		filterExpr.appendWhereClause([...res]);
+	}
+
 compStrExpr 
 	= val:(
 		firstArgObj:strArg
 	  	SP operatorVal:eqOperator SP 
 	  	secondArgObj:strArg
       ) 
-      {  
-      	const res = val.filter(cur => cur !== ' ');
-		filterExpr.appendWhereClause([...res]);
-	  }
+     
 strArg = (
 	substringFunc / 
 	tolowerFunc /
@@ -133,19 +141,10 @@ compareNumExpr
 	  	SP operatorVal:( eqOperator / numCompOperator ) SP 
 	  	secondArgObj:numberArg
       ) 
-      {  
-      	const res = val.filter(cur => cur !== ' ');
-		filterExpr.appendWhereClause([...val.filter(cur => cur !== ' ')]);
-	  }
+      
 numberArg = (
 	lengthFunc /
 	indexofFunc /
-	dayFunc /
-	hourFunc /
-	minuteFunc /
-	monthFunc /
-	secondFunc /
-	yearFunc /
 	roundFunc /
 	number /
 	field
@@ -205,18 +204,6 @@ indexofFunc
       		args: [ fieldRef, strArgVal ]    
 		}
 	  }
-indexofExpr 
-	= indexofFuncObj:indexofFunc 
-	  SP operatorVal:( eqOperator / numCompOperator ) SP
-	  numArg:numberArg
-	  {
-		let {val} = numArg;
-		filterExpr.appendWhereClause([
-			indexofFuncObj,
-			operatorVal,
-			{ val: ++val }
-		]);
-	  }
 // ---------- "substring" ----------
 substringFunc 
 	= "substring"
@@ -232,12 +219,11 @@ substringFunc
 				[
 					fieldRef, 
 					...arg.filter(cur => cur !== ',')
-						  .map(({ val }) => ({ val: ++val }))
 				] :
-				[fieldRef, { val: ++arg.val }];
+				[fieldRef, arg];
 		return {
       		func: 'substring',
-			args: args 
+			args: args
 		}
 	  }
 // ---------- "tolower" ----------
@@ -301,6 +287,10 @@ dayFunc
       		args: [ fieldRef ]    
 		}
 	  }
+dayExpr 
+	= firstArg:(dayFunc / dayVal)
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:(dayFunc / dayVal)
 // ---------- "hour" ----------
 hourFunc 
 	= "hour"
@@ -313,6 +303,10 @@ hourFunc
       		args: [ fieldRef ]    
 		}
 	  }
+hourExpr 
+	= firstArg:(hourFunc / hourVal) 
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:(hourFunc / hourVal)
 // ---------- "minute" ----------
 minuteFunc 
 	= "minute"
@@ -325,6 +319,10 @@ minuteFunc
       		args: [ fieldRef ]    
 		}
 	  }
+minuteExpr
+	= firstArg:( minuteFunc / minuteVal )
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:( minuteFunc / minuteVal )
 // ---------- "month" ----------
 monthFunc 
 	= "month"
@@ -333,10 +331,14 @@ monthFunc
  	  CLOSE
 	  {
 		return {
-      		func: 'minute',
+      		func: 'month',
       		args: [ fieldRef ]    
 		}
 	  }
+monthExpr
+	= firstArg:(monthFunc / monthVal)
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:(monthFunc / monthVal)
 // ---------- "second" ----------
 secondFunc 
 	= "second"
@@ -349,6 +351,10 @@ secondFunc
       		args: [ fieldRef ]    
 		}
 	  }
+secondExpr
+	= firstArg:(secondFunc / secondVal)
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:(secondFunc / secondVal)
 // ---------- "year" ----------
 yearFunc 
 	= "year"
@@ -361,6 +367,10 @@ yearFunc
       		args: [ fieldRef ]    
 		}
 	  }
+yearExpr
+	= firstArg:(yearFunc / yearVal)
+	  SP operatorVal:( eqOperator / numCompOperator ) SP 
+	  secondArg:(yearFunc / yearVal)
 // ---------- "time" ----------
 timeFunc 
 	= "time"
@@ -368,22 +378,15 @@ timeFunc
  		fieldRef:(dateTimeOffsetValue / field)
  	  CLOSE
 	  {
-		  return {
-			  func: 'time',
+		return {
+			func: 'to_time',
       		args: [ fieldRef ]    
 		}
 	  }
 timeExpr 
-	= timeObj:timeFunc
+	= firstArg:(timeFunc / timeOfDayValue)
 	  SP operatorVal:( numCompOperator / eqOperator ) SP 
-	  argVal:timeOfDayValue
-	  {
-		filterExpr.appendWhereClause([
-			  timeObj,
-			operatorVal,
-			argVal,
-		]);
-	  }
+	  secondArg:(timeFunc / timeOfDayValue)
 // ---------- "round" ----------
 roundFunc 
 	= "round"
@@ -450,20 +453,26 @@ orderby = o:$[^,?&()]+
 dateValue "Edm.Date" = val:$( year "-" month "-" day )
 	{ return { val } }
 year  = "-"? ( "0" DIGIT DIGIT DIGIT / oneToNine DIGIT DIGIT DIGIT )
+yearVal = val:$year { return { val } }
 month = "0" oneToNine
       / "1" ( "0" / "1" / "2" )
+monthVal = val:$month { return { val } }
 day   = "0" oneToNine
       / ( "1" / "2" ) DIGIT
       / "3" ( "0" / "1" )
+dayVal = val:$day { return { val } }
 oneToNine = "1" / "2" / "3" / "4" / "5" / "6" / "7" / "8" / "9"    
 
 // datetime offset
 dateTimeOffsetValue "Edm.DateTimeOffset" = val:$( year "-" month "-" day "T" hour ":" minute ( ":" second ( "." fractionalSeconds )? )? ( "Z" / SIGN hour ":" minute ))
 	{ return { val: (new Date(val)).toISOString() } }
-hour   = ( "0" / "1" ) DIGIT
+hour  = ( "0" / "1" ) DIGIT
        / "2" ( "0" / "1" / "2" / "3" ) 
+hourVal = val:$hour { return { val } }
 minute = zeroToFiftyNine
+minuteVal = val:$minute { return { val } }
 second = zeroToFiftyNine 
+secondVal = val:$second { return { val: parseInt(val).toFixed(3) } }
 zeroToFiftyNine = ( "0" / "1" / "2" / "3" / "4" / "5" ) DIGIT
 fractionalSeconds = DIGIT DIGIT? DIGIT? DIGIT?
 					DIGIT? DIGIT? DIGIT? DIGIT?
@@ -476,8 +485,8 @@ timeOfDayValue "Edm.TimeOfDay" = val:$( hour ":" minute ( ":" second ( "." fract
 // string
 strLiteral "Edm.String" = SQUOTE strArgVal:strEntry SQUOTE
 	{ return strArgVal; }
-strEntry = val:$( ( SQUOTEInString / pcharNoSQUOTE )* )
-	{ return { val }; }
+strEntry = symbols:( ( SQUOTEInString / pcharNoSQUOTE )* )
+	{ return { val: symbols.join('') }; }
 
 // field name
 field "field name" 
@@ -525,9 +534,10 @@ nanInfinity = 'NaN' / '-INF' / 'INF'
 //
 otherDelims   = "!" / "(" / ")" / "*" / "+" / "," / ";"
 unreserved = [A-Za-z] / [0-9] / " " / "-" / "." / "_" / "~"
-pcharNoSQUOTE = unreserved / otherDelims / "$" / "&" / "=" / ":" / "@"
+pcharNoSQUOTE = val:$(unreserved / otherDelims / "$" / "&" / "=" / ":" / "@")
+				{ return val; }
 SQUOTEInString = SQUOTE SQUOTE // two consecutive single quotes represent one within a string literal
-
+				 { return "'"; } // convert double quotation mark to single like in current CAP implementaion 
  
 // ---------- Punctuation ----------
 //

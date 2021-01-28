@@ -7,20 +7,19 @@ const $dispatch = cds.Service.prototype.dispatch;
 cds.Service.prototype.dispatch = function (req, ...etc) {
   if (req.query && req._.req) {
     // only for parser tests
-    // fs.writeFileSync(
-    //   path.join(__dirname, `/parser/log/log.json`),
-    //   JSON.stringify(req.query)
-    // );
+    fs.writeFileSync(
+      path.join(__dirname, `/parser/log.json`),
+      JSON.stringify(req.query)
+    );
 
     const URL_TO_PARSE = decodeURIComponent(req._.req.url.substring(1));
     console.log("\n URL_TO_PARSE:", URL_TO_PARSE, "\n CQN:", req.query);
     try {
-      const parsedQuery = parser.parse(URL_TO_PARSE);
-      console.log("\n NEW CQN:", parsedQuery);
-
+      // const parsedQuery = parser.parse(URL_TO_PARSE);
+      // console.log("\n NEW CQN:", parsedQuery);
       // only for experimental
       // comment next line when running odata.parser.test
-      req.query.SELECT = parsedQuery.SELECT;
+      // req.query.SELECT = parsedQuery.SELECT;
     } catch (e) {
       console.error(e);
     }
