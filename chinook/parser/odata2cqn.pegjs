@@ -2,10 +2,12 @@
  * Odata Spec http://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/abnf/odata-abnf-construction-rules.txt
  * Future test cases http://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/abnf/odata-abnf-testcases.xml
  *
- * Limitations: Type, Geo functions are not supported,
+ * Limitations: 
+ * - Type, Geo functions are not supported,
  * maxdatetime, mindatetime, fractionalseconds,
  * totaloffsetminutes, date, totalseconds,
  * floor, ceiling also are not supported by CAP
+ * - Lambda expressions are not supported by nodejs runtime
  *
  * Examples: 
  * Books
@@ -16,19 +18,27 @@
     const $=Object.assign
     const SELECT={};
     const stack=[];
-    let columns=[];
-    let filterExpr;
+	let columns=[];
+	let orderby = [];
+	let filterExpr;
+	let expadRefsStack = [];
     
     const select = (col) => {
-    	if (!SELECT.columns) SELECT.columns = columns
-    	columns.push(col)
+    	if (!SELECT.columns) { 
+			SELECT.columns = columns;
+		}
+    	columns.push(col);
     }
-    const expand = (col) => {
-        select (col)
-        stack.push (columns)
-        columns = col.expand = []
+    const expand = (ref) => {
+        select(ref);
+        stack.push(columns);
+		columns = ref.expand = [];
+		expadRefsStack.push(ref); 
    	}
-    const end = ()=> columns = stack.pop()
+    const end = () => { 
+		columns = stack.pop();
+		expadRefsStack.pop();
+	}
     const compOperators = {
     	eq: '=',
     	ne: '!=',
@@ -62,30 +72,30 @@
 start = ODataRelativeURI
 
 ODataRelativeURI // Note: case-sensitive!
-	= (p:ref { SELECT.from = p }) ( o"?"o QueryOptions )? 
+	= (p:field { SELECT.from = p }) ( o"?"o QueryOptions )? 
     {return { SELECT }}
 
 QueryOptions = (
 	"$expand=" expand /
 	"$select=" select /
-	"$top="    top /
-	"$skip="   skip /
-    "$count="  count /
-    "$orderby=" orderby /
-    (beforeFilter FilterExprSequence aflterFilter)
+
+    ("$top=" val:top { (SELECT.limit || (SELECT.limit={})).rows = val; }) /
+    ("$skip=" val:skip { (SELECT.limit || (SELECT.limit={})).offset = val; }) /
+    ("$count=" val:count { SELECT.count = val; }) /
+    ("$orderby=" val:orderby { SELECT.orderBy = val; }) /
+    
+	(("$filter=" {
+        console.log('starting $filter');
+    	filterExpr = new FilterExpr();    
+	}) FilterExprSequence  {
+    	console.log('end of $filter');
+    	SELECT.where = filterExpr.getParsedWhereClause();
+	})
 )( o'&'o QueryOptions )?
 
 
 // ---------- Grouped $filter expression ----------
 // ----------
-beforeFilter = "$filter=" {
-    console.log('starting $filter');
-    filterExpr = new FilterExpr();    
-}
-aflterFilter = "" {
-    console.log('end of $filter');
-    SELECT.where = filterExpr.getParsedWhereClause();
-}
 
 FilterExprSequence = (Expr (SP logicalOperator SP Expr)*)
 GroupedExpr = (startGroup FilterExprSequence closeGroup) 
@@ -402,50 +412,74 @@ roundFunc
 	  }
 
 
+expandQueryOptions = (
+	(("$expand=" {
+		// curExapndingRef = expandLevel.pop();
+		// console.log('curExapndingRef', curExapndingRef);
+	}) expand) /
+	"$select=" select /
+
+    ("$top=" val:top {
+		// (SELECT.limit || (SELECT.limit={})).rows = val; 
+	}) /
+    ("$skip=" val:skip { 
+		// (SELECT.limit || (SELECT.limit={})).offset = val;
+	}) /
+    ("$count=" val:count {
+		// SELECT.count = val; 
+	}) /
+    ("$orderby=" val:orderby { 
+		// SELECT.orderBy = val;
+	}) /
+	
+    (("$filter=" {
+    	console.log('starting $filter');
+    	filterExpr = new FilterExpr();    
+	}) FilterExprSequence  {
+		console.log('end of $filter');
+		expadRefsStack[expadRefsStack.length-1].where = filterExpr.getParsedWhereClause(); 
+	})
+)( SEMI expandQueryOptions )?
+{
+
+}
+
+expandPiece = (curRef:field { expand(curRef); }) 
+		(OPEN expandQueryOptions CLOSE)? { end(); }
 expand
-	= ((c:ref {expand(c)}) (o'('o QueryOptions o')'o)? {end()})
-	  (o','o expand)?
+	= expandPiece (o','o expand)?
+
+// field ref
+field "field name" 
+	= field:$([a-zA-Z] [_a-zA-Z0-9]*) 
+    { return { ref: [field] }; }
 
 select 
-	= (c:ref {select(c)}) 
+	= (c:field {select(c)}) 
       (o','o select)?
     
-top
-	= n:$[0-9]+
-    { (SELECT.limit || (SELECT.limit={})).rows = { val: parseInt(n) } }
+top = n:$DIGIT+
+    { return { val: parseInt(n) }; }
   
-skip
-	= n:$[0-9]+
-    { (SELECT.limit || (SELECT.limit={})).offset = { val: parseInt(n) } }  
+skip = n:$DIGIT+
+    { return { val: parseInt(n) }; }  
+
+count = c:booleanValue
+	{ return c === 'true'; }
+    
+orderbyPiece = val:(field SP ("asc" / "desc"))
+	{ 
+		const resArray = val.filter(cur => cur !== ' ');
+		const cqnToAppend = { ref: [resArray[0].ref[0]], sort: resArray[1] };
+		orderby.push(cqnToAppend);
+	}
+orderby = val:(orderbyPiece (COMMA orderbyPiece)*)
+	{ const result = orderby; orderby = []; return result; } 
 
 other "other query options"
 	= o:$([^=]+) "=" x:todo
 	{ SELECT[o.slice(1)] = x; console.log('another option was called') }
-
-ref "a reference"
-	= p:$[^,?&()]+ { 
-    	const reffs = p.split('/');
-        if(reffs.length === 2 && reffs[reffs.length-1] === '$count') {
-			SELECT.count = true;
-		}
-        return { ref: [reffs[0]] };
-    }
-
 todo = $[^,?&]+
-
-count = c:$[^,?&()]+
-	{ if(c === 'true') SELECT.count = true }
-    
-orderby = o:$[^,?&()]+
-	{
-    	const matches = o.match(/\w+\s(asc|desc)/g);
-    	if(!!matches) {
-        	const out = matches[0].split(/\s/g);
-    		SELECT.orderby = [
-            	{ ref: [out[0]], sort: out[1] }
-            ]
-        }
-	}
 
 
 // Primitive literals	
@@ -489,11 +523,6 @@ strLiteral "Edm.String" = SQUOTE strArgVal:strEntry SQUOTE
 strEntry = symbols:( ( SQUOTEInString / pcharNoSQUOTE )* )
 	{ return { val: symbols.join('') }; }
 
-// field name
-field "field name" 
-	= field:$([a-zA-Z] [_a-zA-Z0-9]*) 
-    { return { ref: [field] }; }
-
 // number
 number = val:$(
 			doubleValue /
@@ -529,6 +558,7 @@ int32Value "Emd.Int32"
 // contains 1-5 digits
 int16Value "Edm.Int16" = SIGN? DIGIT DIGIT? DIGIT? DIGIT? DIGIT?
 nanInfinity = 'NaN' / '-INF' / 'INF'
+booleanValue = "true" / "false"
 
 
 // ---------- URI sintax ----------

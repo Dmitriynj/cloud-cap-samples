@@ -25,7 +25,10 @@ const updateCurParserResult = () => {
   currentParserRes = JSON.parse(data);
 };
 
-describe("$filter", () => {
+/**
+ * To run this tests uncomment lines 10-13 in server.js
+ */
+describe("Query options", () => {
   before("login user", async () => {
     const customerLoginResponse = await POST(
       "/users/login",
@@ -42,7 +45,7 @@ describe("$filter", () => {
     fs.unlinkSync(path.join(__dirname, `/../chinook/parser/log.json`));
   });
 
-  const compWithCurParserRes = async (service, url) => {
+  const compWhereClauseWithCurParserRes = async (service, url) => {
     await GET(`/${service}/${url}`, {
       headers: {
         authorization: "Basic " + customerAccessToken,
@@ -57,10 +60,10 @@ describe("$filter", () => {
     );
   };
 
-  describe("comparing expressions", () => {
+  describe("$filter comparing expressions", () => {
     it("should support 'eq' with decimal", async () => {
       const url = "Tracks?$filter=unitPrice eq 0.99";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should throw error when using 'eq' with decimal", async () => {
@@ -104,7 +107,7 @@ describe("$filter", () => {
 
     it("should support 'eq' with string", async () => {
       const url = "Tracks?$filter=name eq 'Restless and Wild'";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should throw error when using single quotation mark in string literal", async () => {
@@ -146,7 +149,7 @@ describe("$filter", () => {
 
     it("should support 'gt'", async () => {
       const url = "Tracks?$filter=unitPrice gt 1.00";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should throw error when using 'gt' with string", async () => {
@@ -162,25 +165,25 @@ describe("$filter", () => {
 
     it("should support 'ge'", async () => {
       const url = "Tracks?$filter=unitPrice ge 1.00";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should support 'lt'", async () => {
       const url = "Tracks?$filter=unitPrice lt 1.00";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should support 'le'", async () => {
       const url = "Tracks?$filter=unitPrice le 1.00";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
   });
 
-  describe("logical expressions", () => {
+  describe("$filter logical expressions", () => {
     it("should support 'and'", async () => {
       const url =
         "Tracks?$filter=unitPrice le 1.00 and name eq 'Restless and Wild'";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should throw an error when 'and' used with single expr", async () => {
@@ -287,20 +290,20 @@ describe("$filter", () => {
     });
   });
 
-  describe("function expressions", () => {
+  describe("$filter function expressions", () => {
     it("should support 'contains'", async () => {
       const url = "Tracks?$filter=contains(name,'sun')";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should support 'contains' with tolower(...) func as a first arg", async () => {
       const url = "Tracks?$filter=contains(tolower(name),'sun')";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should support 'contains' with str literal as a first arg and toupper(...) func as second", async () => {
       const url = "Tracks?$filter=contains('some',toupper('somesome'))";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should throw an error when using 'contains' with int32 arg", async () => {
@@ -316,17 +319,17 @@ describe("$filter", () => {
 
     it("should support 'startswith'", async () => {
       const url = "Tracks?$filter=startswith(name,'sun')";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should support 'endswith'", async () => {
       const url = "Tracks?$filter=endswith(name,'sun')";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should support 'length'", async () => {
       const url = "Tracks?$filter=length(name) eq 10";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should throw an error when comparing 'length' res with string literal", async () => {
@@ -392,33 +395,33 @@ describe("$filter", () => {
 
     it("should support 'tolower'", async () => {
       const url = "Tracks?$filter=tolower(name) eq 'some'";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should support 'toupper'", async () => {
       const url = "Tracks?$filter=toupper(name) eq 'some'";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should support 'trim'", async () => {
       const url = "Tracks?$filter=trim(name) eq 'some'";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should support 'concat'", async () => {
       const url =
         "Tracks?$filter=concat(concat(concat('track name: ',name),' and composer: '),composer) eq 'track name: Amazing and composer: Steven Tyler, Richie Supa'";
-      await compWithCurParserRes("browse-tracks", url);
+      await compWhereClauseWithCurParserRes("browse-tracks", url);
     });
 
     it("should support 'day'", async () => {
       const url = "Invoices?$filter=day(invoiceDate) eq 01";
-      await compWithCurParserRes("browse-invoices", url);
+      await compWhereClauseWithCurParserRes("browse-invoices", url);
     });
 
     it("should support 'hour'", async () => {
       const url = "Invoices?$filter=hour(invoiceDate) eq 09";
-      await compWithCurParserRes("browse-invoices", url);
+      await compWhereClauseWithCurParserRes("browse-invoices", url);
     });
 
     it("should throw error when using 'hour' with invalid value", async () => {
@@ -434,7 +437,7 @@ describe("$filter", () => {
 
     it("should support 'minute'", async () => {
       const url = "Invoices?$filter=minute(invoiceDate) eq 09";
-      await compWithCurParserRes("browse-invoices", url);
+      await compWhereClauseWithCurParserRes("browse-invoices", url);
     });
 
     it("should throw an error when using 'minute' with invalid value", async () => {
@@ -450,7 +453,7 @@ describe("$filter", () => {
 
     it("should support 'month'", async () => {
       const url = "Invoices?$filter=month(invoiceDate) eq 12";
-      await compWithCurParserRes("browse-invoices", url);
+      await compWhereClauseWithCurParserRes("browse-invoices", url);
     });
 
     it("should throw error when using 'month' with invalid value", async () => {
@@ -466,7 +469,7 @@ describe("$filter", () => {
 
     it("should support 'second'", async () => {
       const url = "Invoices?$filter=second(invoiceDate) eq 59";
-      await compWithCurParserRes("browse-invoices", url);
+      await compWhereClauseWithCurParserRes("browse-invoices", url);
     });
 
     it("should throw error when using 'second' with invalid value", async () => {
@@ -482,7 +485,7 @@ describe("$filter", () => {
 
     it("should support 'year'", async () => {
       const url = "Invoices?$filter=hour(invoiceDate) eq 09";
-      await compWithCurParserRes("browse-invoices", url);
+      await compWhereClauseWithCurParserRes("browse-invoices", url);
     });
 
     it("should throw error when using 'year' with invalid value", async () => {
@@ -498,7 +501,7 @@ describe("$filter", () => {
 
     it("should support 'time'", async () => {
       const url = "Invoices?$filter=time(invoiceDate) eq 11:45:32";
-      await compWithCurParserRes("browse-invoices", url);
+      await compWhereClauseWithCurParserRes("browse-invoices", url);
     });
 
     it("should throw error 'time' when using invalid time value", async () => {
@@ -514,7 +517,7 @@ describe("$filter", () => {
 
     it("should support 'round'", async () => {
       const url = "Invoices?$filter=round(total) eq 2";
-      await compWithCurParserRes("browse-invoices", url);
+      await compWhereClauseWithCurParserRes("browse-invoices", url);
     });
 
     it("should throw error using 'round' with invalid value", async () => {
@@ -526,6 +529,76 @@ describe("$filter", () => {
           `Expected "&", end of input, or space but "." found.`
         );
       }
+    });
+  });
+
+  describe("$orderby expressions", () => {
+    it("should support $orderby", async () => {
+      const url = "Tracks?$orderby=name asc,unitPrice desc";
+      await GET(`/browse-tracks/${url}`);
+      updateCurParserResult();
+
+      newParserRes = parser.parse(url);
+
+      expect(currentParserRes.SELECT.orderBy).to.deep.equal(
+        newParserRes.SELECT.orderBy
+      );
+    });
+
+    it("should throw an error when using $orderby with spaces", async () => {
+      const url = "Tracks?$orderby=name asc, unitPrice desc";
+      try {
+        newParserRes = parser.parse(url);
+      } catch (error) {
+        expect(error.message).to.equal(`Expected field name but " " found.`);
+      }
+    });
+  });
+
+  describe("$top, $skip, $count expressions", () => {
+    it("should support $top", async () => {
+      const url = "Tracks?$top=90";
+      await GET(`/browse-tracks/${url}`);
+      updateCurParserResult();
+
+      newParserRes = parser.parse(url);
+
+      expect(currentParserRes.SELECT.limit).to.deep.equal(
+        newParserRes.SELECT.limit
+      );
+    });
+
+    it("should throw error when using $top without", async () => {
+      const url = "Tracks?$top=+90";
+      try {
+        newParserRes = parser.parse(url);
+      } catch (error) {
+        expect(error.message).to.equal(`Expected digit but "+" found.`);
+      }
+    });
+
+    it("should support $skip", async () => {
+      const url = "Tracks?$skip=31";
+      await GET(`/browse-tracks/${url}`);
+      updateCurParserResult();
+
+      newParserRes = parser.parse(url);
+
+      expect(currentParserRes.SELECT.offset).to.deep.equal(
+        newParserRes.SELECT.offset
+      );
+    });
+
+    it("should support $count", async () => {
+      const url = "Tracks?$count=true";
+      await GET(`/browse-tracks/${url}`);
+      updateCurParserResult();
+
+      newParserRes = parser.parse(url);
+
+      expect(currentParserRes.SELECT.count).to.deep.equal(
+        newParserRes.SELECT.count
+      );
     });
   });
 });
