@@ -15,8 +15,8 @@ cds.Service.prototype.dispatch = function (req, ...etc) {
     const URL_TO_PARSE = decodeURIComponent(req._.req.url.substring(1));
     console.log("\n URL_TO_PARSE:", URL_TO_PARSE, "\n CQN:", req.query);
     try {
-      // const parsedQuery = parser.parse(URL_TO_PARSE);
-      // console.log("\n NEW CQN:", parsedQuery);
+      const parsedQuery = parser.parse(URL_TO_PARSE);
+      console.log("\n NEW CQN:", parsedQuery);
       // only for experimental
       // comment next line when running odata.parser.test
       // req.query.SELECT = parsedQuery.SELECT;

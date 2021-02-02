@@ -50,8 +50,8 @@ Authorization: Basic eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFuZHJld0
 
 ### ------------------------------------------------------------------------
 # Get all current customer invoices
-GET {{browse-invoices-service}}/Invoices?$filter=round(total) eq 2.2.2
-Authorization: Basic eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imxlb25la29obGVyQHN1cmZldS5kZSIsIklEIjoyLCJyb2xlcyI6WyJjdXN0b21lciJdLCJpYXQiOjE2MTE4NTczNTgsImV4cCI6MTYxMTg1Nzk1OH0.miv1RgW1FJJvxb2u12INURd6senWcToHDkpvCzqNUUc
+GET {{browse-invoices-service}}/Invoices?$select=ID,invoiceDate,total&$top=10&$expand=invoiceItems($select=ID,unitPrice,quantity;$top=10;$expand=track($select=ID,name,composer;$expand=invoiceItems($select=ID,unitPrice,quantity;$top=10));$filter=quantity eq 1)
+Authorization: Basic eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imxlb25la29obGVyQHN1cmZldS5kZSIsIklEIjoyLCJyb2xlcyI6WyJjdXN0b21lciJdLCJpYXQiOjE2MTIxODAwMDQsImV4cCI6MTYxMjE4MDYwNH0.Lu5zJhJ5iQBnLi9ykRDwTgPUT34Rs3p6bXhrD6xnfI0
 
 ### ------------------------------------------------------------------------
 ## Manage store service
@@ -90,7 +90,7 @@ GET {{browse-tracks-service}}/Tracks?$count=true
 
 ### ------------------------------------------------------------------------
 # Get Trakcs
-GET {{browse-tracks-service}}/Tracks?$select=ID,name,composer,unitPrice&$expand=invoiceItems($filter=ID le 50;$expand=track($filter=ID le 55))&$count=true
+GET {{browse-tracks-service}}/Tracks?$select=ID,name,composer,unitPrice&$expand=invoiceItems($filter=ID le 50)&$count=true
 
 ### ------------------------------------------------------------------------
 # Get Albums by artist ID axpanding tracks and artist

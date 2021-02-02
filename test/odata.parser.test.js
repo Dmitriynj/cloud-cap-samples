@@ -290,7 +290,7 @@ describe("Query options", () => {
     });
   });
 
-  describe("$filter function expressions", () => {
+  describe("$filter query option", () => {
     it("should support 'contains'", async () => {
       const url = "Tracks?$filter=contains(name,'sun')";
       await compWhereClauseWithCurParserRes("browse-tracks", url);
@@ -532,7 +532,7 @@ describe("Query options", () => {
     });
   });
 
-  describe("$orderby expressions", () => {
+  describe("$orderby query option", () => {
     it("should support $orderby", async () => {
       const url = "Tracks?$orderby=name asc,unitPrice desc";
       await GET(`/browse-tracks/${url}`);
@@ -555,7 +555,7 @@ describe("Query options", () => {
     });
   });
 
-  describe("$top, $skip, $count expressions", () => {
+  describe("$top, $skip, $count query options", () => {
     it("should support $top", async () => {
       const url = "Tracks?$top=90";
       await GET(`/browse-tracks/${url}`);
@@ -599,6 +599,108 @@ describe("Query options", () => {
       expect(currentParserRes.SELECT.count).to.deep.equal(
         newParserRes.SELECT.count
       );
+    });
+  });
+
+  describe("$expand query option", () => {
+    it("should support $expand mixed with $filter, $top, $select", async () => {
+      const url =
+        "Invoices?$select=ID,invoiceDate,total&$top=10&$expand=invoiceItems($select=ID,unitPrice,quantity;$top=10;$expand=track($select=ID,name,composer;$expand=invoiceItems($select=ID,unitPrice,quantity;$top=10));$filter=quantity eq 1)";
+
+      newParserRes = parser.parse(url);
+
+      // current implementation adds extra property
+      // for all iterable expanding associations ->
+      //
+      // "limit": {
+      //        "rows": {
+      //            "val": 9007199254740991
+      //          }
+      //        }
+      expect({
+        SELECT: {
+          from: {
+            ref: ["Invoices"],
+          },
+          columns: [
+            {
+              ref: ["ID"],
+            },
+            {
+              ref: ["invoiceDate"],
+            },
+            {
+              ref: ["total"],
+            },
+            {
+              ref: ["invoiceItems"],
+              expand: [
+                {
+                  ref: ["ID"],
+                },
+                {
+                  ref: ["unitPrice"],
+                },
+                {
+                  ref: ["quantity"],
+                },
+                {
+                  ref: ["track"],
+                  expand: [
+                    {
+                      ref: ["ID"],
+                    },
+                    {
+                      ref: ["name"],
+                    },
+                    {
+                      ref: ["composer"],
+                    },
+                    {
+                      ref: ["invoiceItems"],
+                      expand: [
+                        {
+                          ref: ["ID"],
+                        },
+                        {
+                          ref: ["unitPrice"],
+                        },
+                        {
+                          ref: ["quantity"],
+                        },
+                      ],
+                      limit: {
+                        rows: {
+                          val: 10,
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+              limit: {
+                rows: {
+                  val: 10,
+                },
+              },
+              where: [
+                {
+                  ref: ["quantity"],
+                },
+                "=",
+                {
+                  val: 1,
+                },
+              ],
+            },
+          ],
+          limit: {
+            rows: {
+              val: 10,
+            },
+          },
+        },
+      }).to.deep.equal(newParserRes);
     });
   });
 });

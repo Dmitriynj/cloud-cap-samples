@@ -413,36 +413,34 @@ roundFunc
 
 
 expandQueryOptions = (
-	(("$expand=" {
-		// curExapndingRef = expandLevel.pop();
-		// console.log('curExapndingRef', curExapndingRef);
-	}) expand) /
+	("$expand=" expand) /
 	"$select=" select /
 
     ("$top=" val:top {
-		// (SELECT.limit || (SELECT.limit={})).rows = val; 
+		const appendingRef = expadRefsStack[expadRefsStack.length-1];
+		(appendingRef.limit || (appendingRef.limit={})).rows = val; 
 	}) /
     ("$skip=" val:skip { 
-		// (SELECT.limit || (SELECT.limit={})).offset = val;
+		const appendingRef = expadRefsStack[expadRefsStack.length-1];
+		(appendingRef.limit || (appendingRef.limit={})).offset = val;
 	}) /
     ("$count=" val:count {
-		// SELECT.count = val; 
+		const appendingRef = expadRefsStack[expadRefsStack.length-1];
+		appendingRef.count = val; 
 	}) /
     ("$orderby=" val:orderby { 
-		// SELECT.orderBy = val;
-	}) /
-	
+		const appendingRef = expadRefsStack[expadRefsStack.length-1];
+		appendingRef.orderBy = val;
+	}) /	
     (("$filter=" {
     	console.log('starting $filter');
     	filterExpr = new FilterExpr();    
 	}) FilterExprSequence  {
 		console.log('end of $filter');
-		expadRefsStack[expadRefsStack.length-1].where = filterExpr.getParsedWhereClause(); 
+		const appendingRef = expadRefsStack[expadRefsStack.length-1];
+		appendingRef.where = filterExpr.getParsedWhereClause(); 
 	})
 )( SEMI expandQueryOptions )?
-{
-
-}
 
 expandPiece = (curRef:field { expand(curRef); }) 
 		(OPEN expandQueryOptions CLOSE)? { end(); }
